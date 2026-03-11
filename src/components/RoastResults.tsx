@@ -15,16 +15,9 @@ import {
   Flame,
 } from "lucide-react";
 import type { RoastResult } from "@/lib/types";
+import { scoreLabel } from "@/lib/score";
 
-function scoreLabel(score: number): string {
-  if (score >= 90) return "Chef's Kiss";
-  if (score >= 80) return "Pretty Good";
-  if (score >= 70) return "Needs Work";
-  if (score >= 60) return "Mediocre";
-  if (score >= 40) return "Rough";
-  if (score >= 20) return "Disaster";
-  return "Dumpster Fire";
-}
+export { scoreLabel };
 
 function scoreBadgeStyle(score: number): string {
   if (score >= 80) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
