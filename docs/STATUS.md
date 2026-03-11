@@ -26,7 +26,7 @@
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| Share Results | Stub (button exists, no onClick) | High |
+| Share Results | Working (copies URL to clipboard) | Done |
 | PDF Upload validation | Needs manual testing | Medium |
 | Payments (Stripe/LemonSqueezy) | Not started | High |
 | Full Roast (paid tier) | API supports it, UI doesn't trigger | High |
@@ -40,14 +40,18 @@
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
 
+### Fixed (Sprint 0)
+
+- "Share Results" button now copies URL to clipboard + shows toast (#1)
+- "Get Full Roast — $9.99" button shows "Coming soon!" toast (#2)
+- "Resume Template Pack — $29" button shows "Coming soon!" toast (#2)
+- "Professional Rewrite — $99" button shows "Coming soon!" toast (#2)
+- Social proof numbers replaced with honest value props ("Free instant feedback", "No signup required") (#3)
+- Added `sonner` toast library via shadcn/ui (`<Toaster />` in root layout)
+
 ### Known Issues
 
-- "Share Results" button has no click handler
-- "Get Full Roast — $9.99" button has no click handler
-- "Resume Template Pack — $29" button has no click handler
-- "Professional Rewrite — $99" button has no click handler
 - No error toast/notification on API failure (only inline text)
-- Social proof numbers are hardcoded ("1,200+ resumes roasted")
 - No favicon customization (uses default Next.js)
 
 ## Tech Stack
