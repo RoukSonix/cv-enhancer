@@ -8,22 +8,24 @@
 
 ## Prerequisites
 
-### Install `sonner` (toast notification library)
+### Install `sonner` via shadcn (toast notification library)
 
 ```bash
-npm install sonner
+npx shadcn@latest add sonner
 ```
 
 - **Why sonner:** Lightweight, unstyled by default (respects our dark theme), widely used with shadcn/ui projects.
-- Alternatively, `shadcn` can add it via `npx shadcn@latest add sonner`, which creates a `src/components/ui/sonner.tsx` wrapper — use this approach to stay consistent with the existing shadcn setup.
+- **Use the shadcn approach** (not bare `npm install sonner`) to stay consistent with the existing shadcn setup (`components.json` present, all UI components in `src/components/ui/`). This creates a `src/components/ui/sonner.tsx` wrapper with `"use client"` already set.
+- The `toast` function is still imported directly from `"sonner"` in consumer files.
 
 ### Add `<Toaster />` to root layout
 
 **File:** `src/app/layout.tsx`
 
-- Import `Toaster` from `sonner`
+- Import `Toaster` from `@/components/ui/sonner` (the shadcn wrapper, **not** from `"sonner"` directly)
 - Add `<Toaster />` inside `<body>`, after `{children}`
 - Configure for dark theme: `<Toaster theme="dark" richColors />`
+- **Note:** `layout.tsx` is a Server Component (no `"use client"`). This is fine — Next.js App Router allows rendering client components (like the shadcn Toaster wrapper) from server components.
 
 ---
 
@@ -222,3 +224,43 @@ Replace the social proof section (lines 102–105):
 - [ ] No console errors
 - [ ] Update `docs/STATUS.md` to reflect fixes
 - [ ] Close GitHub Issues #1, #2, #3
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-11
+**Validator:** Plan Validation Agent
+
+### Line Number Accuracy
+
+All line references verified against current file contents:
+
+| Reference | File | Actual Content | Status |
+|-----------|------|----------------|--------|
+| `page.tsx:37-40` | Share Results button | `<Button variant="outline" ...>` | Correct |
+| `page.tsx:102-105` | Social proof section | `<div>...<span>1,200+...` | Correct |
+| `RoastResults.tsx:202-207` | "Get Full Roast" button | `<Button size="lg" ...>` | Correct |
+| `RoastResults.tsx:221-227` | "Resume Template Pack" button | `<Button variant="outline" ...>` | Correct |
+| `RoastResults.tsx:228-235` | "Professional Rewrite" button | `<Button variant="outline" ...>` | Correct |
+
+### "use client" Directives
+
+| File | Has `"use client"` | Needs it for toast? | Status |
+|------|-------------------|---------------------|--------|
+| `src/app/page.tsx` | Yes (line 1) | Yes — calls `toast()` | OK |
+| `src/components/RoastResults.tsx` | Yes (line 1) | Yes — calls `toast()` | OK |
+| `src/app/layout.tsx` | No (Server Component) | No — only renders `<Toaster />` client component | OK |
+
+### Corrections Made
+
+1. **Sonner installation method:** Clarified to use `npx shadcn@latest add sonner` (not bare `npm install sonner`) for consistency with existing shadcn setup.
+2. **Toaster import path:** Changed from `import { Toaster } from "sonner"` to `import { Toaster } from "@/components/ui/sonner"` to match the shadcn wrapper path.
+3. **Server Component note:** Added explicit note that `layout.tsx` is a Server Component and that rendering a client component (`Toaster`) from it is valid in Next.js App Router.
+
+### No Issues Found
+
+- **Breaking changes:** None. All changes are additive (onClick handlers, text replacement).
+- **Edge cases:** Clipboard API failure is handled with try/catch. Sonner handles rapid toast stacking gracefully.
+- **Import conflicts:** No conflicts. `toast` from `"sonner"` and `Toaster` from `"@/components/ui/sonner"` are separate concerns.
+- **Build safety:** All modified files are already client components (except layout.tsx which only renders a client component — valid pattern).
