@@ -1,8 +1,31 @@
 # Sprint Plan
 
 **Created:** 2026-03-11  
-**Total sprints:** 15  
+**Total sprints:** 16 (S0-S15)  
+**Policy:** Zero bugs at sprint start — all bugs fixed before new features  
 **Sprint duration:** 1-3 days each
+
+---
+
+## Sprint 0: Bug Fixes (Zero Bugs Policy)
+
+**Goal:** Fix all known bugs before starting new features. Policy: 0 bugs at sprint start.
+
+**Issues:**
+- [#1](https://github.com/RoukSonix/cv-enhancer/issues/1) Share Results button has no click handler
+- [#2](https://github.com/RoukSonix/cv-enhancer/issues/2) Payment buttons have no click handlers
+- [#3](https://github.com/RoukSonix/cv-enhancer/issues/3) Social proof numbers are hardcoded
+
+**Tasks:**
+- **#1:** Add onClick to Share Results → `navigator.clipboard.writeText()` with current page URL + toast notification "Link copied!"
+- **#2:** Add onClick to all payment buttons → show toast "Coming soon!" (placeholder until Sprint 4)
+- **#3:** Remove hardcoded numbers OR replace with honest text ("Join thousands of job seekers" or similar non-numeric)
+- Add toast notification library (sonner)
+- Write unit tests for any new logic
+
+**Tech:** sonner (toast), clipboard API, React event handlers  
+**Testing:** Click each button → verify correct behavior. No console errors.  
+**Done when:** All 3 issues closed, 0 open bugs
 
 ---
 
