@@ -4,7 +4,7 @@ import { Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SharedRoastView } from "@/components/SharedRoastView";
 import { decodeRoastResult } from "@/lib/share";
-import { scoreLabel } from "@/components/RoastResults";
+import { scoreLabel } from "@/lib/score";
 
 interface PageProps {
   searchParams: Promise<{ r?: string }>;
