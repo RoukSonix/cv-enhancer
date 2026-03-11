@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -202,6 +203,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
               <Button
                 size="lg"
                 className="w-full gradient-fire text-white font-semibold h-12 hover:opacity-90 transition-opacity border-0 animate-pulse-glow"
+                onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
               >
                 Get Full Roast -- $9.99
               </Button>
@@ -222,6 +224,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
               variant="outline"
               size="sm"
               className="hover:border-fire-orange hover:text-fire-orange transition-colors"
+              onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
             >
               Resume Template Pack -- $29
             </Button>
@@ -229,6 +232,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
               variant="outline"
               size="sm"
               className="hover:border-fire-orange hover:text-fire-orange transition-colors"
+              onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
             >
               Professional Rewrite -- $99
             </Button>

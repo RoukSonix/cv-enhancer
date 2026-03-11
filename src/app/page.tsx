@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Flame, Target, Scan, Pencil, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResumeUpload } from "@/components/ResumeUpload";
@@ -34,7 +35,19 @@ export default function Home() {
               Roast Another
             </button>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    toast.success("Link copied!");
+                  } catch {
+                    toast.error("Failed to copy link");
+                  }
+                }}
+              >
                 <Share2 className="w-3.5 h-3.5" />
                 Share Results
               </Button>
@@ -100,8 +113,8 @@ export default function Home() {
               Trusted by job seekers who can handle the truth
             </p>
             <div className="flex justify-center gap-6 text-xs text-muted-foreground/60">
-              <span>1,200+ resumes roasted</span>
-              <span>4.8 avg. satisfaction</span>
+              <span>Free instant feedback</span>
+              <span>No signup required</span>
             </div>
           </div>
         )}
