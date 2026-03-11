@@ -38,6 +38,7 @@ To reduce JSON size before compression, map verbose keys to short ones:
 ```typescript
 // RoastResult → SharePayload (minified)
 {
+  v:  number;          // schema version (always 1 for now)
   s:  number;          // overallScore
   sm: string;          // summary
   ti: string[];        // topIssues
@@ -92,13 +93,15 @@ encodeRoastResult(result: RoastResult): string
 decodeRoastResult(encoded: string): RoastResult | null
   → decompressFromEncodedURIComponent → JSON.parse → expand keys → validate → return RoastResult or null
 
-buildShareUrl(result: RoastResult): string
-  → return `${window.location.origin}/roast?r=${encodeRoastResult(result)}`
+buildShareUrl(result: RoastResult, origin?: string): string
+  → return `${origin ?? window.location.origin}/roast?r=${encodeRoastResult(result)}`
+  (optional `origin` param allows unit testing without mocking `window`)
 ```
 
 **Validation on decode:**
 - Check `decompressFromEncodedURIComponent` returns non-null (catches corrupted data)
 - Check `JSON.parse` succeeds (catches malformed JSON)
+- Check `v` field: if missing, treat as v1 (backwards compat). If present and unrecognized, still attempt v1 decode (best-effort)
 - Validate required fields exist: `s` (number), `sm` (string), `ti` (array), `as` (number)
 - Validate `overallScore` is 0-100, `atsScore` is 0-100
 - If any check fails, return `null`
@@ -107,9 +110,21 @@ buildShareUrl(result: RoastResult): string
 
 **Purpose:** Server component that decodes the `r` query param and renders results.
 
+**IMPORTANT: In Next.js 15+/16, `searchParams` is a `Promise` and must be `await`ed.**
+
 **Structure:**
-- `generateMetadata({ searchParams })` — decodes `r` param, returns OG tags with score and summary
-- Default export — decodes `r` param, renders `<SharedRoastView>` (client component) or error state
+```typescript
+// searchParams is a Promise in Next.js 16 — must be awaited
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ r?: string }> }) {
+  const { r } = await searchParams;
+  // decode r, return OG tags
+}
+
+export default async function RoastPage({ searchParams }: { searchParams: Promise<{ r?: string }> }) {
+  const { r } = await searchParams;
+  // decode r, render <SharedRoastView> or error state
+}
+```
 
 **OG Meta Tags (from `generateMetadata`):**
 ```typescript
@@ -190,7 +205,7 @@ This is a one-word change. The function is already pure and has no dependencies.
 "lz-string": "^1.5.0"
 ```
 
-Also add `@types/lz-string` to devDependencies (lz-string ships its own types in v1.5+, but add if needed for older versions).
+No separate `@types/lz-string` needed — lz-string v1.5+ ships its own TypeScript declarations.
 
 ---
 
@@ -239,24 +254,29 @@ Tests for `encodeRoastResult` and `decodeRoastResult`:
 6. **Decode returns null for missing required fields** — compress JSON missing `s` (overallScore)
 7. **Score clamping** — encode a result with `overallScore: 150`, decode should clamp to 100
 8. **Excluded fields regenerated** — decoded result has a valid `id` (UUID format) and `createdAt` (ISO string)
-9. **buildShareUrl produces valid URL** — URL starts with origin, contains `/roast?r=`, param is non-empty
+9. **buildShareUrl produces valid URL** — pass explicit `origin`, verify URL starts with it, contains `/roast?r=`, param is non-empty
+10. **Version field round-trip** — encoded payload includes `v: 1`, decode handles missing `v` gracefully (backwards compat)
 
 Tests for key minification:
-10. **Minified JSON is smaller than original** — verify the minified output has fewer characters
+11. **Minified JSON is smaller than original** — verify the minified output has fewer characters
 
 ### Component Tests (`src/app/roast/__tests__/page.test.tsx`)
 
-11. **Renders results when valid `r` param provided** — mock searchParams with valid encoded result, verify score renders
-12. **Renders error state when `r` param missing** — verify "No results" message and home link
-13. **Renders error state when `r` param invalid** — verify "invalid or expired" message
+**Note:** The `/roast/page.tsx` is an async server component (uses `await searchParams`). Standard `@testing-library/react` cannot render async server components directly. Options:
+- Test the decode-and-render logic via unit tests on `decodeRoastResult` + integration tests via Playwright
+- Or use `next/experimental/testing/server` if available in Next.js 16
+
+12. **Renders results when valid `r` param provided** — mock searchParams with valid encoded result, verify score renders
+13. **Renders error state when `r` param missing** — verify "No results" message and home link
+14. **Renders error state when `r` param invalid** — verify "invalid or expired" message
 
 ### Integration Tests (Manual / Playwright)
 
-14. **Full share flow:** Submit resume → get results → click Share → paste URL in new tab → see same results
-15. **OG meta tags:** `curl` the shared URL, verify `og:title` contains score, `og:description` contains summary
-16. **Error page:** Visit `/roast` with no params → see error with home link
-17. **Error page:** Visit `/roast?r=garbage` → see error with home link
-18. **Mobile:** Share flow works on mobile viewport
+15. **Full share flow:** Submit resume → get results → click Share → paste URL in new tab → see same results
+16. **OG meta tags:** `curl` the shared URL, verify `og:title` contains score, `og:description` contains summary
+17. **Error page:** Visit `/roast` with no params → see error with home link
+18. **Error page:** Visit `/roast?r=garbage` → see error with home link
+19. **Mobile:** Share flow works on mobile viewport
 
 ### Test Setup
 
@@ -299,3 +319,29 @@ Unit tests for `share.ts` don't need React — they're pure function tests and c
 - **Social share buttons** ("Share on Twitter/LinkedIn") — Sprint 8
 - **Paid tier sharing** — No payments yet, but encoding supports it when ready
 - **URL shortening** — Not needed until paid tier produces longer URLs
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-11
+**Validator:** Claude (Plan Validation Agent)
+
+### Issues Found & Fixed
+
+| # | Severity | Issue | Fix Applied |
+|---|----------|-------|-------------|
+| 1 | **Critical** | `searchParams` is a `Promise` in Next.js 15+/16 — plan didn't specify `await` | Added explicit async signatures with `await searchParams` for both `generateMetadata` and page component |
+| 2 | **Important** | No version field in encoded payload — old share links would break silently on schema changes | Added `v: 1` to minified key mapping with backwards-compat decode logic |
+| 3 | **Important** | `@types/lz-string` note was misleading — v1.5+ ships own types | Removed; clarified no separate types package needed |
+| 4 | **Minor** | `buildShareUrl` used `window.location.origin` with no way to inject origin for unit tests | Added optional `origin` parameter |
+| 5 | **Minor** | Component tests assumed async server components can be rendered with `@testing-library/react` | Added note about server component testing limitations |
+
+### Items Confirmed as Sound
+
+- **lz-string** is the right choice: ~5KB, purpose-built `compressToEncodedURIComponent`, good compression ratio
+- **URL lengths** are safe for free tier (~530-550 chars); paid tier limits correctly deferred to Sprint 2
+- **Server/client component split** is correct: server component for `generateMetadata`, client wrapper for interactivity
+- **No SSR/hydration issues**: query params read server-side, `window` only used in client-side click handler
+- **`scoreLabel` export** is safe: pure function, no side effects, no existing consumers affected
+- **Edge case handling** is thorough: corrupted data, missing fields, score clamping, empty arrays all covered
