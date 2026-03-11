@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    container_name: cv-enhancer
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    restart: unless-stopped
