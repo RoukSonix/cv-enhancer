@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { RoastResult } from "@/lib/types";
 
-function scoreLabel(score: number): string {
+export function scoreLabel(score: number): string {
   if (score >= 90) return "Chef's Kiss";
   if (score >= 80) return "Pretty Good";
   if (score >= 70) return "Needs Work";

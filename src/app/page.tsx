@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ResumeUpload } from "@/components/ResumeUpload";
 import { RoastResults } from "@/components/RoastResults";
 import { FireParticles } from "@/components/FireParticles";
+import { buildShareUrl } from "@/lib/share";
 import type { RoastResult } from "@/lib/types";
 
 export default function Home() {
@@ -41,7 +42,8 @@ export default function Home() {
                 className="gap-1.5"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(window.location.href);
+                    const shareUrl = buildShareUrl(result);
+                    await navigator.clipboard.writeText(shareUrl);
                     toast.success("Link copied!");
                   } catch {
                     toast.error("Failed to copy link");

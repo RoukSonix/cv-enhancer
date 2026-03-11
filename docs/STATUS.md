@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-11
+**Last updated:** 2026-03-11 (Sprint 1)
 
 ## Current State
 
@@ -26,11 +26,11 @@
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| Share Results | Working (copies URL to clipboard) | Done |
+| Share Results | **Working** — generates `/roast?r=<encoded>` share link with OG meta tags | Done |
 | PDF Upload validation | Needs manual testing | Medium |
 | Payments (Stripe/LemonSqueezy) | Not started | High |
 | Full Roast (paid tier) | API supports it, UI doesn't trigger | High |
-| Shareable results (/roast/[id]) | Not started | High |
+| Shareable results (query-param encoded) | **Done** (Sprint 1 — `/roast?r=` with lz-string) | Done |
 | Database (persist results) | Not started | High |
 | Email capture | Not started | Medium |
 | Auth | Not started | Low |
@@ -39,6 +39,17 @@
 | OG images for social sharing | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 1)
+
+- Shareable roast results via URL-encoded query params (`/roast?r=<lz-string>`)
+- OG meta tags (og:title, og:description, twitter:card) on shared results page
+- `src/lib/share.ts`: encode/decode/buildShareUrl with lz-string compression and key minification
+- `src/app/roast/page.tsx`: server component with `generateMetadata` and error states
+- `src/components/SharedRoastView.tsx`: client wrapper with "Get your own roast" CTA
+- Share button on main page now generates proper share URLs
+- Vitest test suite with 14 unit tests (encoding round-trips, validation, edge cases)
+- Schema versioning (`v: 1`) for future backwards compatibility
 
 ### Fixed (Sprint 0)
 
@@ -72,6 +83,7 @@
 src/
 ├── app/
 │   ├── api/roast/route.ts    # POST endpoint: PDF/text → AI roast
+│   ├── roast/page.tsx         # Shared results page + OG meta tags (Sprint 1)
 │   ├── layout.tsx             # Root layout (dark theme, Geist fonts)
 │   ├── page.tsx               # Main page (landing + results)
 │   └── globals.css            # Global styles, fire theme
@@ -81,10 +93,13 @@ src/
 │   ├── FireParticles.tsx      # Background fire particles
 │   ├── LoadingRoast.tsx       # Loading state with jokes
 │   ├── ResumeUpload.tsx       # Upload/paste form
-│   └── RoastResults.tsx       # Results display
+│   ├── RoastResults.tsx       # Results display
+│   └── SharedRoastView.tsx    # Client wrapper for shared results (Sprint 1)
 └── lib/
+    ├── __tests__/share.test.ts # Unit tests for share encoding/decoding
     ├── openrouter.ts          # OpenRouter client config
     ├── prompt.ts              # Free/paid roast prompts
+    ├── share.ts               # Share URL encode/decode utilities (Sprint 1)
     ├── types.ts               # TypeScript interfaces
     └── utils.ts               # Utility functions
 ```
