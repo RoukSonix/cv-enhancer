@@ -7,8 +7,9 @@
 
 ---
 
-## Sprint 0: Bug Fixes (Zero Bugs Policy)
+## Sprint 0: Bug Fixes (Zero Bugs Policy) — COMPLETE
 
+**Completed:** 2026-03-11 | **PR:** [#4](https://github.com/RoukSonix/cv-enhancer/pull/4)  
 **Goal:** Fix all known bugs before starting new features. Policy: 0 bugs at sprint start.
 
 **Issues:**
