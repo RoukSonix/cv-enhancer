@@ -49,7 +49,9 @@
 
 ---
 
-## Sprint 2: Database & Persistent Results
+## Sprint 2: Database & Persistent Results — COMPLETE
+
+**Completed:** 2026-03-12 | **PR:** [#7](https://github.com/RoukSonix/cv-enhancer/pull/7)
 
 **Goal:** Store roast results server-side so shared links are stable and don't expire.
 
