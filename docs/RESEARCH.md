@@ -200,3 +200,39 @@ Start with Resume Roaster only. Add related products after validation.
 
 *Generated: 2026-02-14*
 *Source: RESEARCH.md, PLAN.md*
+
+---
+
+## Hosting Research (2026-03-12)
+
+### Decision: Hetzner VPS + Coolify
+
+**Why:** Cheapest option (~$5/month total), full Docker support (minimal changes from dev setup), full control, Coolify gives Vercel-like DX for free.
+
+### Options Considered
+
+| Option | Cost/mo | Pros | Cons |
+|--------|---------|------|------|
+| **Hetzner + Coolify** | ~$5-6 | Cheapest, full control, Docker as-is, auto SSL, git deploy | Self-managed server |
+| Railway | ~$10-15 | Great DX, DB included, scale-to-zero | More expensive |
+| Vercel + Neon | $0-20+ | Best DX, zero config | Per-seat pricing, no persistent backend |
+
+### Hetzner VPS Plan
+- **Server:** CX22 (2 vCPU, 4GB RAM) — ~€4.5/mo (~$5)
+- **Coolify:** Open-source, self-hosted PaaS (git push deploy, preview URLs, auto SSL, monitoring)
+- **Docker Compose:** Same setup as dev — Next.js + PostgreSQL + Stripe webhook
+- **Location:** Falkenstein or Helsinki (EU, good for GDPR)
+
+### Domain
+- **Registrar:** Cloudflare Registrar (~$10/year, at-cost pricing)
+- **TLD:** .com preferred (resumeroaster.com or similar)
+
+### TODO when ready
+1. Create Hetzner account
+2. Provision CX22 VPS
+3. Install Coolify
+4. Buy domain on Cloudflare
+5. Point DNS to VPS
+6. Deploy via Coolify (Docker Compose)
+7. Configure production env vars
+8. Switch Stripe to live mode
