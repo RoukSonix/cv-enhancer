@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { PDFParse } from "pdf-parse";
+import { nanoid } from "nanoid";
 import { openrouter, MODEL } from "@/lib/openrouter";
 import { buildRoastPrompt } from "@/lib/prompt";
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import type { RoastResult } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -68,7 +72,7 @@ export async function POST(req: NextRequest) {
     const parsed = JSON.parse(jsonMatch[0]);
 
     const result: RoastResult = {
-      id: crypto.randomUUID(),
+      id: nanoid(12),
       overallScore: parsed.overallScore ?? 0,
       summary: parsed.summary ?? "",
       sections: parsed.sections ?? [],
@@ -78,6 +82,23 @@ export async function POST(req: NextRequest) {
       topIssues: parsed.topIssues ?? [],
       createdAt: new Date().toISOString(),
     };
+
+    // Persist to database (best-effort — don't fail the request if DB is down)
+    try {
+      const resumeHash = createHash("sha256").update(resumeText).digest("hex");
+      await prisma.roast.create({
+        data: {
+          id: result.id,
+          resumeText,
+          resumeHash,
+          tier,
+          result: result as unknown as Prisma.JsonObject,
+          overallScore: result.overallScore,
+        },
+      });
+    } catch (dbError) {
+      console.warn("Failed to save roast to database:", dbError);
+    }
 
     return NextResponse.json(result);
   } catch (error) {

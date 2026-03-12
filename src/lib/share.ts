@@ -90,6 +90,11 @@ export function decodeRoastResult(encoded: string): RoastResult | null {
   }
 }
 
+export function buildShareUrlById(id: string, origin?: string): string {
+  const base = origin ?? window.location.origin;
+  return `${base}/roast/${id}`;
+}
+
 const URL_LENGTH_WARNING = 8000;
 
 export function buildShareUrl(result: RoastResult, origin?: string): string {
