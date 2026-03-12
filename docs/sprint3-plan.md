@@ -349,3 +349,38 @@ const MOCK_PAID_RESPONSE = {
 3. **The API already works** — `POST /api/roast` already accepts `tier=paid` and the prompt returns 5 sections + 3 rewritten bullets. No AI/prompt changes needed.
 4. **DB already stores tier** — The `Roast` model has a `tier` field (`@default("free")`). No schema changes needed.
 5. **Share encoding** — The `share.ts` encode/decode functions don't include `tier`, so shared URLs of paid results will fall back to detecting via `rewrittenBullets.length > 0`. This is acceptable for now.
+6. **Suspense boundary** — `useSearchParams()` in a client component page requires a `<Suspense>` boundary in Next.js App Router. Wrap the `useSearchParams()` usage in a child component (e.g., `HomeContent`) or add a `<Suspense>` wrapper in the page to avoid hydration warnings.
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-12
+**Validator:** Plan Validation Agent
+
+### Checklist
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Plan correctly identifies all 5 paid sections from `prompt.ts` | PASS |
+| 2 | Section names match prompt exactly (Format & Layout, Work Experience, Skills & Keywords, Education & Certs, Overall Impact) | PASS |
+| 3 | Paid prompt returns 5 topIssues, 3 atsIssues, 3 rewrittenBullets — plan matches | PASS |
+| 4 | Tier detection: explicit `tier` field + `rewrittenBullets.length` fallback is sound | PASS |
+| 5 | `?tier=paid` testing: API already reads `tier` from formData (`route.ts:28`) and passes to prompt (`route.ts:51`) | PASS |
+| 6 | API correctly needs `tier` added to result object (`route.ts:74-84` currently omits it) — plan identifies this | PASS |
+| 7 | `RoastResultsFullProps` matches existing `RoastResultsProps` pattern | PASS |
+| 8 | Styling uses existing fire theme classes (`gradient-fire`, `fire-orange`, `oklch()`, score-based badge colors) | PASS |
+| 9 | E2E tests use same `page.route("**/api/roast")` mock pattern as `roast-flow.spec.ts` | PASS |
+| 10 | Mock paid response includes all required fields (5 sections, 3 bullets, tier: "paid") | PASS |
+| 11 | Share URL backward compat handled (fallback to `rewrittenBullets.length > 0`) | PASS |
+| 12 | DB backward compat handled (optional `tier` field, old records lack it) | PASS |
+
+### Issues Found & Resolved
+
+1. **`useSearchParams()` Suspense requirement** — Added implementation note #6 about wrapping in `<Suspense>` or extracting to a child component. This is a Next.js App Router requirement that could cause hydration warnings if not handled.
+
+### Notes
+
+- No blocking issues found. The plan is thorough, correctly maps all AI prompt fields to UI elements, and the testing strategy is sound.
+- The code duplication between `RoastResults.tsx` and `RoastResultsFull.tsx` is an acknowledged design choice. Acceptable for Sprint 3 scope; can be refactored later if needed.
+- The `share.ts` encode/decode not including `tier` is acceptable — the `rewrittenBullets.length > 0` heuristic is reliable since the free prompt always returns `rewrittenBullets: []`.
