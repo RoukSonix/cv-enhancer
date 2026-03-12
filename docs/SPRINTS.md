@@ -155,27 +155,7 @@
 
 ---
 
-## Sprint 7: Deploy (Production)
-
-**Goal:** Application live on the internet with a custom domain.
-
-**Tasks:**
-- Production Dockerfile (multi-stage build, `next build` + `next start`)
-- Update docker-compose with production profile
-- Set up Vercel deployment OR VPS with Docker
-- Buy and configure domain (resumeroaster.com or similar)
-- SSL certificate (auto via Vercel or Let's Encrypt)
-- Environment variables in production (OpenRouter key, Stripe keys, DB)
-- Health check endpoint `/api/health`
-- Basic rate limiting on `/api/roast` (prevent abuse)
-
-**Tech:** Docker multi-stage, Vercel/VPS, DNS, SSL, rate limiting  
-**Testing:** Deploy → verify all features work in production → test payment flow with Stripe test mode  
-**Done when:** App accessible via custom domain, HTTPS, all features working
-
----
-
-## Sprint 8: OG Images & Social Sharing
+## Sprint 7: OG Images & Social Sharing
 
 **Goal:** Generate dynamic social preview images for shared roast results (viral loop).
 
@@ -193,7 +173,7 @@
 
 ---
 
-## Sprint 9: PDF Upload E2E Testing
+## Sprint 8: PDF Upload E2E Testing
 
 **Goal:** Ensure PDF upload works reliably with various resume formats.
 
@@ -211,7 +191,7 @@
 
 ---
 
-## Sprint 10: Analytics & Real Metrics
+## Sprint 9: Analytics & Real Metrics
 
 **Goal:** Track usage, replace hardcoded social proof with real data.
 
@@ -229,7 +209,7 @@
 
 ---
 
-## Sprint 11: Auth & User Accounts
+## Sprint 10: Auth & User Accounts
 
 **Goal:** Users can create accounts to access roast history and manage purchases.
 
@@ -247,7 +227,7 @@
 
 ---
 
-## Sprint 12: Template Pack Sales Page
+## Sprint 11: Template Pack Sales Page
 
 **Goal:** Sell resume template packs as additional revenue stream.
 
@@ -265,7 +245,7 @@
 
 ---
 
-## Sprint 13: Rewrite Service Page
+## Sprint 12: Rewrite Service Page
 
 **Goal:** Offer done-for-you resume rewrite service ($99-$199).
 
@@ -283,7 +263,7 @@
 
 ---
 
-## Sprint 14: Marketing & Launch Prep
+## Sprint 13: Marketing & Launch Prep
 
 **Goal:** Prepare all assets for public launch.
 
@@ -299,6 +279,26 @@
 **Tech:** Content creation, social platforms  
 **Testing:** Review all assets, get feedback before publishing  
 **Done when:** All launch assets ready, scheduled posts prepared
+
+---
+
+## Sprint 14: Deploy (Production)
+
+**Goal:** Application live on the internet with a custom domain.
+
+**Tasks:**
+- Production Dockerfile (multi-stage build, `next build` + `next start`)
+- Update docker-compose with production profile
+- Set up Hetzner VPS + Coolify
+- Buy and configure domain on Cloudflare Registrar
+- SSL certificate (auto via Coolify / Let's Encrypt)
+- Environment variables in production (OpenRouter key, Stripe keys, DB)
+- Health check endpoint `/api/health`
+- Basic rate limiting on `/api/roast` (prevent abuse)
+
+**Tech:** Docker multi-stage, Hetzner VPS, Coolify, DNS, SSL, rate limiting  
+**Testing:** Deploy → verify all features work in production → test payment flow with Stripe test mode  
+**Done when:** App accessible via custom domain, HTTPS, all features working
 
 ---
 
@@ -328,16 +328,16 @@
 
 ```
 Critical Path (must have for launch):
-  S1 → S2 → S3 → S4 → S7 → S15
+  S0-S6 (done) → S14 (deploy) → S15 (launch)
 
 Revenue enablers:
-  S4 (payments) → S5 (email) → S12 (templates) → S13 (rewrite)
+  S4 (payments, done) → S5 (email, done) → S11 (templates) → S12 (rewrite)
 
 Growth:
-  S8 (OG images) → S10 (analytics) → S14 (marketing)
+  S7 (OG images) → S9 (analytics) → S13 (marketing)
 
 Quality:
-  S6 (UX polish) → S9 (PDF testing) → S11 (auth)
+  S6 (UX polish, done) → S8 (PDF testing) → S10 (auth)
 ```
 
-**Minimum viable launch:** S1 + S2 + S3 + S4 + S7 (Share + DB + Paid tier + Payments + Deploy)
+**Minimum viable launch:** S0-S6 (done) + S14 (Deploy) + S15 (Launch)
