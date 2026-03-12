@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoastResults } from "@/components/RoastResults";
+import { RoastResultsFull } from "@/components/RoastResultsFull";
 import type { RoastResult } from "@/lib/types";
 
 interface SharedRoastViewProps {
@@ -44,7 +45,11 @@ export function SharedRoastView({ result }: SharedRoastViewProps) {
       </div>
 
       <div className="container mx-auto px-4 py-12 max-w-4xl relative">
-        <RoastResults result={result} onReset={() => router.push("/")} />
+        {result.tier === "paid" || result.rewrittenBullets.length > 0 ? (
+          <RoastResultsFull result={result} onReset={() => router.push("/")} />
+        ) : (
+          <RoastResults result={result} onReset={() => router.push("/")} />
+        )}
 
         {/* Footer */}
         <footer className="text-center mt-20 pb-8 text-xs text-muted-foreground/50">

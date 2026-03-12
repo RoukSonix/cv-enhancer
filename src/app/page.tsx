@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Flame, Target, Scan, Pencil, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResumeUpload } from "@/components/ResumeUpload";
 import { RoastResults } from "@/components/RoastResults";
+import { RoastResultsFull } from "@/components/RoastResultsFull";
 import { FireParticles } from "@/components/FireParticles";
 import { buildShareUrlById } from "@/lib/share";
 import type { RoastResult } from "@/lib/types";
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const tier = searchParams.get("tier") === "paid" ? "paid" : "free" as const;
   const [result, setResult] = useState<RoastResult | null>(null);
+
+  const isPaid = result?.tier === "paid";
 
   return (
     <main className="min-h-screen bg-background relative overflow-hidden">
@@ -103,9 +109,13 @@ export default function Home() {
 
         {/* Content */}
         {result ? (
-          <RoastResults result={result} onReset={() => setResult(null)} />
+          isPaid ? (
+            <RoastResultsFull result={result} onReset={() => setResult(null)} />
+          ) : (
+            <RoastResults result={result} onReset={() => setResult(null)} />
+          )
         ) : (
-          <ResumeUpload onResult={setResult} />
+          <ResumeUpload onResult={setResult} tier={tier} />
         )}
 
         {/* Social proof */}
@@ -127,5 +137,13 @@ export default function Home() {
         </footer>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
   );
 }

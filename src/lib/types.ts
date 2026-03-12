@@ -21,6 +21,7 @@ export interface RoastResult {
   rewrittenBullets: RewrittenBullet[];
   topIssues: string[];
   createdAt: string;
+  tier?: "free" | "paid";
 }
 
 export interface RoastRequest {

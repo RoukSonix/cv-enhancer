@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-12 (Sprint 2)
+**Last updated:** 2026-03-12 (Sprint 3)
 
 ## Current State
 
@@ -15,10 +15,13 @@
 | Loading animation | Working | Progress bar, rotating jokes |
 | Results: Overall Score | Working | Animated ring, score badge (Dumpster Fire -> Chef's Kiss) |
 | Results: Summary | Working | AI-generated roast text |
-| Results: Top Issues | Working | 3 numbered issues |
-| Results: ATS Score | Working | Score bar + issues list |
-| Results: First Impression | Working | Score, roast text, 3 tips |
-| Results: Upsell blocks | Working | UI only, no payment logic |
+| Results: Top Issues | Working | 3 (free) or 5 (paid) numbered issues |
+| Results: ATS Score | Working | Score bar + 1 (free) or 3 (paid) issues |
+| Results: First Impression | Working | Free tier: 1 section, score, roast, 1 tip |
+| Results: Full Roast (paid) | Working | 5 sections, score-based accent colors, 2 tips each |
+| Results: Rewritten Bullets | Working | 3 bullet rewrites with original → improved + explanation |
+| Results: Tier Badge | Working | "Free Roast" / "Full Roast" badge in score header |
+| Results: Upsell blocks | Working | Free tier only, no payment logic yet |
 | "Roast Another" button | Working | Resets to upload form |
 | Docker dev setup | Working | `docker compose up -d` on port 3000 |
 | Share Results (lz-string) | Working | `/roast?r=<encoded>` share link (backward compat) |
@@ -33,7 +36,6 @@
 |---------|--------|----------|
 | PDF Upload validation | Needs manual testing | Medium |
 | Payments (Stripe/LemonSqueezy) | Not started | High |
-| Full Roast (paid tier) | API supports it, UI doesn't trigger | High |
 | Email capture | Not started | Medium |
 | Auth | Not started | Low |
 | Deploy (Vercel) | Not started | Medium |
@@ -41,6 +43,21 @@
 | OG images for social sharing | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 3)
+
+- Full paid tier UI: `RoastResultsFull` component renders all 5 sections with score-based accent colors
+- `TierBadge` component: "Free Roast" (muted) / "Full Roast" (gradient-fire with crown icon)
+- `RoastResult.tier` field: explicit `"free" | "paid"` with backward compat (optional, falls back to `rewrittenBullets.length`)
+- API route includes `tier` in response object
+- `page.tsx` reads `?tier=paid` query param via `useSearchParams()` with Suspense boundary
+- `ResumeUpload` accepts `tier` prop and sends it in formData
+- `SharedRoastView` conditionally renders `RoastResultsFull` for paid results
+- Premium glow CSS animation (`glow-premium`) for paid tier score card
+- Section cards use score-based left border accent (emerald/amber/fire-orange)
+- No upsell CTA shown for paid tier results
+- Unit tests for tier logic (7 tests)
+- E2E tests for paid tier UI with mocked API (6 tests)
 
 ### Implemented (Sprint 2)
 
@@ -116,13 +133,16 @@ src/
 │   ├── FireParticles.tsx        # Background fire particles
 │   ├── LoadingRoast.tsx         # Loading state with jokes
 │   ├── ResumeUpload.tsx         # Upload/paste form
-│   ├── RoastResults.tsx         # Results display
+│   ├── RoastResults.tsx         # Free tier results display
+│   ├── RoastResultsFull.tsx     # Paid tier results display (Sprint 3)
+│   ├── TierBadge.tsx            # Free/Full Roast tier badge (Sprint 3)
 │   └── SharedRoastView.tsx      # Client wrapper for shared results (Sprint 1)
 ├── generated/prisma/            # Prisma generated client (Sprint 2)
 └── lib/
     ├── __tests__/
     │   ├── share.test.ts        # Unit tests for share encoding/decoding
-    │   └── roast-db.test.ts     # Unit tests for nanoid, hash, permalink (Sprint 2)
+    │   ├── roast-db.test.ts     # Unit tests for nanoid, hash, permalink (Sprint 2)
+    │   └── tier.test.ts        # Unit tests for tier logic (Sprint 3)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
