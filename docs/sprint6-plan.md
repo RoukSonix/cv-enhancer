@@ -627,7 +627,7 @@ Every possible error in the application and how it's handled after Sprint 6:
 | `validateFile` accepts valid PDF under 5MB | Returns null (no error) |
 | `validateFile` rejects file over 5MB | Returns size error message |
 | `validateFile` rejects non-PDF file | Returns type error message |
-| `validateFile` rejects file exactly at 5MB limit | Returns null (5MB is the limit, not over) |
+| `validateFile` accepts file exactly at 5MB boundary | Returns null (5MB is the limit, not over) |
 | `formatFileSize` formats bytes correctly | 500 → "500 B", 1500 → "1.5 KB", 2500000 → "2.4 MB" |
 
 **File:** `src/lib/__tests__/timeout.test.ts` (NEW)
@@ -693,3 +693,33 @@ Every possible error in the application and how it's handled after Sprint 6:
 - `ErrorBoundary` wraps existing children transparently
 - `loading.tsx` is a new file with no impact on existing page behavior
 - Server-side 413 response is a new error code but client already handles non-ok responses generically
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-12
+**Validator:** Claude (validation agent)
+
+### Checklist
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Toast migration — all 8 inline errors identified | PASS — all 6 `setError`/`setEmailError` calls, both `<p>` elements, and `onBlur` handler accounted for. Line numbers match source. |
+| 2 | AbortController timeout with Next.js formData POST | PASS — `signal` works with any `fetch` including FormData. Timeout → abort → catch → retry UI flow is correct. |
+| 3 | File validation at the right points (input, drag, submit) | PASS — three client-side points plus server-side 413. Defense-in-depth. |
+| 4 | ErrorBoundary class component with App Router | PASS — `"use client"` directive is correct. `<Toaster>` correctly outside boundary. |
+| 5 | Loading skeleton for `/roast/[id]` | PASS — `loading.tsx` is correct Next.js convention. Skeleton mirrors `SharedRoastView` layout. |
+| 6 | Existing E2E test breakage | PASS — `email-capture.spec.ts` correctly flagged as needing toast assertion update. Other tests unaffected. |
+| 7 | Mobile breakpoints | PASS — drop zone padding, segmented control text, and retry button stacking correctly targeted. |
+| 8 | Error states catalog completeness | PASS — 21 states across 5 categories. Comprehensive. |
+
+### Fixes applied during validation
+
+- **Test plan bug (Section 11):** Changed `validateFile rejects file exactly at 5MB limit` → `validateFile accepts file exactly at 5MB boundary` (description contradicted expected result of `null`/pass).
+
+### Notes for implementation
+
+- **ErrorBoundary scope:** Only catches client-side render errors. Server component errors in `/roast/[id]/page.tsx` still surface as Next.js defaults. Consider adding `src/app/roast/[id]/error.tsx` in a future sprint for full coverage.
+- **JSON parse edge case:** If API returns non-JSON, the catch block shows "Network error" — technically inaccurate but functional and rare. Acceptable for Sprint 6 scope.
+- **`setTimedOut(true)` duplication:** Called in both setTimeout callback and AbortError catch. Harmless (idempotent), no fix needed.
