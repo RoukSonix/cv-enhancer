@@ -112,7 +112,9 @@
 
 ---
 
-## Sprint 5: Email Capture
+## Sprint 5: Email Capture — COMPLETE
+
+**Completed:** 2026-03-12 | **PR:** [#10](https://github.com/RoukSonix/cv-enhancer/pull/10)
 
 **Goal:** Collect email before showing free roast results (lead generation).
 
