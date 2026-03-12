@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +15,7 @@ import {
   Check,
   X,
   Flame,
+  Loader2,
 } from "lucide-react";
 import { TierBadge } from "@/components/TierBadge";
 import type { RoastResult } from "@/lib/types";
@@ -32,7 +35,59 @@ interface RoastResultsProps {
 }
 
 export function RoastResults({ result, onReset }: RoastResultsProps) {
+  const router = useRouter();
   const isFree = result.tier !== "paid";
+  const [credits, setCredits] = useState(0);
+  const [loading, setLoading] = useState<"single" | "bundle" | "redeem" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/checkout/credits")
+      .then((res) => res.json())
+      .then((data) => setCredits(data.credits ?? 0))
+      .catch(() => {});
+  }, []);
+
+  async function handleCheckout(priceType: "single" | "bundle") {
+    setLoading(priceType);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roastId: result.id, priceType }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.error || "Failed to start checkout");
+        setLoading(null);
+      }
+    } catch {
+      toast.error("Failed to start checkout");
+      setLoading(null);
+    }
+  }
+
+  async function handleRedeem() {
+    setLoading("redeem");
+    try {
+      const res = await fetch("/api/checkout/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roastId: result.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        router.push(`/roast/${result.id}`);
+      } else {
+        toast.error(data.error || "Failed to redeem credit");
+        setLoading(null);
+      }
+    } catch {
+      toast.error("Failed to redeem credit");
+      setLoading(null);
+    }
+  }
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
@@ -195,16 +250,45 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
                 Get detailed breakdown of all 5 sections, 3 rewritten bullet points,
                 full ATS analysis, and specific tips for every section.
               </p>
-              <Button
-                size="lg"
-                className="w-full gradient-fire text-white font-semibold h-12 hover:opacity-90 transition-opacity border-0 animate-pulse-glow"
-                onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
-              >
-                Get Full Roast -- $9.99
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Or get 3 roasts for $24.99
-              </p>
+              {credits > 0 ? (
+                <Button
+                  size="lg"
+                  className="w-full gradient-fire text-white font-semibold h-12 hover:opacity-90 transition-opacity border-0 animate-pulse-glow"
+                  onClick={handleRedeem}
+                  disabled={loading !== null}
+                >
+                  {loading === "redeem" ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
+                  Use Credit ({credits} remaining)
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="lg"
+                    className="w-full gradient-fire text-white font-semibold h-12 hover:opacity-90 transition-opacity border-0 animate-pulse-glow"
+                    onClick={() => handleCheckout("single")}
+                    disabled={loading !== null}
+                  >
+                    {loading === "single" ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    Get Full Roast -- $9.99
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hover:border-fire-orange hover:text-fire-orange transition-colors"
+                    onClick={() => handleCheckout("bundle")}
+                    disabled={loading !== null}
+                  >
+                    {loading === "bundle" ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    3 roasts for $24.99
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -219,7 +303,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
               variant="outline"
               size="sm"
               className="hover:border-fire-orange hover:text-fire-orange transition-colors"
-              onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
+              onClick={() => toast("Coming soon!", { description: "Resume Template Pack will be available in a future update." })}
             >
               Resume Template Pack -- $29
             </Button>
@@ -227,7 +311,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
               variant="outline"
               size="sm"
               className="hover:border-fire-orange hover:text-fire-orange transition-colors"
-              onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
+              onClick={() => toast("Coming soon!", { description: "Professional Rewrite will be available in a future update." })}
             >
               Professional Rewrite -- $99
             </Button>

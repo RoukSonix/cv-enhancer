@@ -8,14 +8,32 @@ datasource db {
 }
 
 model Roast {
-  id           String   @id              // nanoid, 12 chars
-  resumeText   String                    // original resume text
-  resumeHash   String                    // SHA-256 hash for dedup
-  tier         String   @default("free") // "free" or "paid"
-  result       Json                      // full RoastResult JSON
-  overallScore Int                       // denormalized for queries
-  createdAt    DateTime @default(now())
+  id              String    @id              // nanoid, 12 chars
+  resumeText      String                     // original resume text
+  resumeHash      String                     // SHA-256 hash for dedup
+  tier            String    @default("free") // "free" or "paid"
+  result          Json                       // full RoastResult JSON
+  overallScore    Int                        // denormalized for queries
+  createdAt       DateTime  @default(now())
+
+  // Sprint 4: Payment fields
+  paid            Boolean   @default(false)  // true after successful payment
+  stripeSessionId String?   @unique          // Stripe Checkout session ID
+  paidAt          DateTime?                  // when payment was confirmed
+  creditId        String?                    // links to Credit if upgraded via bundle
 
   @@index([resumeHash])
   @@index([createdAt])
+}
+
+model Credit {
+  id              String    @id @default(cuid())
+  bundleToken     String                    // shared token for all credits in a bundle
+  stripeSessionId String                    // Stripe Checkout session that created this
+  roastId         String?                   // null = unused, set when redeemed
+  usedAt          DateTime?                 // when the credit was consumed
+  createdAt       DateTime  @default(now())
+
+  @@index([bundleToken])
+  @@index([stripeSessionId])
 }

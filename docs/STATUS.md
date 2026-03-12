@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-12 (Sprint 3)
+**Last updated:** 2026-03-12 (Sprint 4)
 
 ## Current State
 
@@ -21,7 +21,14 @@
 | Results: Full Roast (paid) | Working | 5 sections, score-based accent colors, 2 tips each |
 | Results: Rewritten Bullets | Working | 3 bullet rewrites with original → improved + explanation |
 | Results: Tier Badge | Working | "Free Roast" / "Full Roast" badge in score header |
-| Results: Upsell blocks | Working | Free tier only, no payment logic yet |
+| Results: Upsell blocks | Working | Free tier: checkout buttons wired to Stripe |
+| Stripe Checkout (single) | Working | $9.99 one-time payment via Stripe hosted checkout |
+| Stripe Checkout (bundle) | Working | $24.99 for 3 Full Roasts via Stripe hosted checkout |
+| Stripe Webhook | Working | `checkout.session.completed` → mark paid + re-run AI |
+| Bundle Credits | Working | Cookie-based credit tracking, redeem via API |
+| Payment Success Page | Working | Polls for paid result, auto-redirects to /roast/[id] |
+| Payment Cancel Page | Working | Shows retry CTA and link back to free results |
+| Upgrade Retry | Working | POST /api/roast/[id]/upgrade retries AI for stuck roasts |
 | "Roast Another" button | Working | Resets to upload form |
 | Docker dev setup | Working | `docker compose up -d` on port 3000 |
 | Share Results (lz-string) | Working | `/roast?r=<encoded>` share link (backward compat) |
@@ -35,7 +42,7 @@
 | Feature | Status | Priority |
 |---------|--------|----------|
 | PDF Upload validation | Needs manual testing | Medium |
-| Payments (Stripe/LemonSqueezy) | Not started | High |
+| Payments (Stripe) | Implemented (Sprint 4) | High |
 | Email capture | Not started | Medium |
 | Auth | Not started | Low |
 | Deploy (Vercel) | Not started | Medium |
@@ -43,6 +50,23 @@
 | OG images for social sharing | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 4)
+
+- Stripe Checkout integration for single ($9.99) and bundle (3 for $24.99) Full Roast payments
+- Prisma schema: `paid`, `stripeSessionId`, `paidAt`, `creditId` fields on Roast; new `Credit` model
+- `src/lib/stripe.ts`: Stripe client singleton with env var validation
+- `src/lib/roast-ai.ts`: Shared AI call helper (extracted from POST /api/roast for reuse in webhook)
+- `POST /api/checkout`: Creates Stripe Checkout sessions with CSRF protection
+- `POST /api/webhooks/stripe`: Handles `checkout.session.completed` — marks paid, creates bundle credits, re-runs AI with paid prompt
+- `POST /api/checkout/redeem`: Redeems bundle credit for a roast (reads `bundle_token` cookie)
+- `GET /api/checkout/credits`: Returns unused credit count for bundle token cookie
+- `POST /api/roast/[id]/upgrade`: Retry endpoint for paid roasts stuck on free tier (AI failure recovery)
+- `/checkout/success`: Server component sets bundle cookie, client component polls for paid result
+- `/checkout/cancel`: Cancel page with retry CTA
+- `RoastResults.tsx`: "Get Full Roast" and "3 for $24.99" buttons wired to checkout; "Use Credit" button when credits available
+- `RoastResult.paid` field added to types
+- Unit tests: stripe env validation, checkout validation, credit redemption, webhook idempotency (26 new tests)
 
 ### Implemented (Sprint 3)
 
@@ -109,6 +133,7 @@
 - **Icons:** Lucide React
 - **AI:** OpenRouter API (MiniMax M2.5) via OpenAI SDK
 - **PDF Parsing:** pdf-parse
+- **Payments:** Stripe (Checkout Sessions + Webhooks)
 - **Database:** PostgreSQL 17 (Alpine) via Prisma 7
 - **Runtime:** Node.js 22 (Alpine Docker)
 - **Container:** Docker Compose
@@ -118,9 +143,23 @@
 ```
 src/
 ├── app/
-│   ├── api/roast/
-│   │   ├── route.ts             # POST: PDF/text -> AI roast + DB save
-│   │   └── [id]/route.ts       # GET: fetch saved roast by ID (Sprint 2)
+│   ├── api/
+│   │   ├── checkout/
+│   │   │   ├── route.ts         # POST: create Stripe Checkout session (Sprint 4)
+│   │   │   ├── credits/route.ts # GET: check remaining bundle credits (Sprint 4)
+│   │   │   └── redeem/route.ts  # POST: redeem bundle credit (Sprint 4)
+│   │   ├── roast/
+│   │   │   ├── route.ts         # POST: PDF/text -> AI roast + DB save
+│   │   │   └── [id]/
+│   │   │       ├── route.ts     # GET: fetch saved roast by ID (Sprint 2)
+│   │   │       └── upgrade/route.ts # POST: retry AI for stuck paid roasts (Sprint 4)
+│   │   └── webhooks/stripe/
+│   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4)
+│   ├── checkout/
+│   │   ├── success/
+│   │   │   ├── page.tsx         # Payment success + cookie set (Sprint 4)
+│   │   │   └── SuccessPoller.tsx # Client polling component (Sprint 4)
+│   │   └── cancel/page.tsx      # Payment cancelled page (Sprint 4)
 │   ├── roast/
 │   │   ├── page.tsx             # Shared results via ?r= query param (Sprint 1)
 │   │   └── [id]/page.tsx        # Permalink results from DB (Sprint 2)
@@ -133,7 +172,7 @@ src/
 │   ├── FireParticles.tsx        # Background fire particles
 │   ├── LoadingRoast.tsx         # Loading state with jokes
 │   ├── ResumeUpload.tsx         # Upload/paste form
-│   ├── RoastResults.tsx         # Free tier results display
+│   ├── RoastResults.tsx         # Free tier results + payment buttons (Sprint 4)
 │   ├── RoastResultsFull.tsx     # Paid tier results display (Sprint 3)
 │   ├── TierBadge.tsx            # Free/Full Roast tier badge (Sprint 3)
 │   └── SharedRoastView.tsx      # Client wrapper for shared results (Sprint 1)
@@ -142,14 +181,20 @@ src/
     ├── __tests__/
     │   ├── share.test.ts        # Unit tests for share encoding/decoding
     │   ├── roast-db.test.ts     # Unit tests for nanoid, hash, permalink (Sprint 2)
-    │   └── tier.test.ts        # Unit tests for tier logic (Sprint 3)
+    │   ├── tier.test.ts         # Unit tests for tier logic (Sprint 3)
+    │   ├── stripe.test.ts       # Unit tests for Stripe env validation (Sprint 4)
+    │   ├── checkout.test.ts     # Unit tests for checkout validation (Sprint 4)
+    │   ├── credits.test.ts      # Unit tests for credit redemption (Sprint 4)
+    │   └── webhook.test.ts      # Unit tests for webhook logic (Sprint 4)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
+    ├── roast-ai.ts              # Shared AI call helper (Sprint 4)
     ├── score.ts                 # Score label utility
     ├── share.ts                 # Share URL encode/decode + buildShareUrlById
+    ├── stripe.ts                # Stripe client singleton (Sprint 4)
     ├── types.ts                 # TypeScript interfaces
     └── utils.ts                 # Utility functions
 prisma/
-└── schema.prisma                # Prisma schema with Roast model (Sprint 2)
+└── schema.prisma                # Prisma schema with Roast + Credit models
 ```

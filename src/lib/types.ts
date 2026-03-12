@@ -22,6 +22,7 @@ export interface RoastResult {
   topIssues: string[];
   createdAt: string;
   tier?: "free" | "paid";
+  paid?: boolean;
 }
 
 export interface RoastRequest {

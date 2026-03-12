@@ -22,7 +22,6 @@ const MOCK_ROAST_RESPONSE = {
 
 test.describe("Roast Flow", () => {
   test("full roast lifecycle (mocked API)", async ({ page }) => {
-    // Mock the API to avoid external AI dependency
     await page.route("**/api/roast", (route) => {
       if (route.request().method() === "POST") {
         route.fulfill({
@@ -41,7 +40,7 @@ test.describe("Roast Flow", () => {
     await page.getByPlaceholder("Paste your resume text here").fill(RESUME_TEXT);
     await page.getByRole("button", { name: "Roast My Resume" }).click();
 
-    // Wait for results (mocked — should be fast)
+    // Wait for results
     await expect(page.getByText("Your Resume Score")).toBeVisible({ timeout: 15000 });
 
     // Verify result sections
@@ -50,13 +49,12 @@ test.describe("Roast Flow", () => {
     await expect(page.getByText("First Impression")).toBeVisible();
     await expect(page.getByText("Want the Full Roast?")).toBeVisible();
 
+    // Verify payment button exists (wired to Stripe now, not "Coming soon")
+    await expect(page.getByRole("button", { name: /Full Roast.*\$9\.99/ })).toBeVisible();
+
     // Share button → toast
     await page.getByRole("button", { name: "Share Results" }).click();
     await expect(page.getByText(/Link copied!|Failed to copy link/)).toBeVisible({ timeout: 5000 });
-
-    // Payment button → coming soon toast
-    await page.getByRole("button", { name: /Full Roast.*\$9\.99/ }).click();
-    await expect(page.getByText("Coming soon!")).toBeVisible({ timeout: 3000 });
 
     // Reset
     await page.getByRole("button", { name: "Roast Another", exact: true }).click();
