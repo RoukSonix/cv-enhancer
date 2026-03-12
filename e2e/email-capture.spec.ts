@@ -35,11 +35,14 @@ test.describe("Email Capture", () => {
     await expect(page.getByRole("button", { name: "Roast My Resume" })).toBeDisabled();
   });
 
-  test("invalid email shows inline error", async ({ page }) => {
+  test("invalid email shows toast error", async ({ page }) => {
     await page.goto("/");
     await page.getByPlaceholder("your@email.com").fill("notanemail");
     await page.getByPlaceholder("your@email.com").blur();
-    await expect(page.getByText("Please enter a valid email address.")).toBeVisible();
+    // Error is now shown as a toast notification instead of inline text
+    await expect(
+      page.locator("[data-sonner-toast]").getByText("Please enter a valid email address.")
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test("valid email enables submit", async ({ page }) => {

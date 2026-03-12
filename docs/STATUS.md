@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-12 (Sprint 5)
+**Last updated:** 2026-03-12 (Sprint 6)
 
 ## Current State
 
@@ -41,20 +41,44 @@
 | Email on results page | Working | Confirmation line below score card |
 | Email stripped on shared pages | Working | Server-side stripping in `/roast/[id]` |
 | Admin email export | Working | GET `/api/admin/emails` (JSON + CSV, no auth) |
+| Toast error notifications | Working | All errors shown via sonner toasts (Sprint 6) |
+| File validation (client) | Working | Rejects non-PDF and >5MB with toast (Sprint 6) |
+| File validation (server) | Working | 413 response for >5MB uploads (Sprint 6) |
+| File info display | Working | Shows file name + size after upload (Sprint 6) |
+| API timeout + retry | Working | 30s AbortController timeout, retry UI (Sprint 6) |
+| Error boundary | Working | Class component wrapping layout children (Sprint 6) |
+| Loading skeleton | Working | Pulsing skeleton for `/roast/[id]` page (Sprint 6) |
+| Mobile responsiveness | Working | Responsive padding, text sizing, button stacking (Sprint 6) |
 
 ### Not Implemented (Stubs / Missing)
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| PDF Upload validation | Needs manual testing | Medium |
-| Payments (Stripe) | Implemented (Sprint 4) | High |
-| Email capture | Implemented (Sprint 5) | Medium |
 | Auth | Not started | Low |
 | Deploy (Vercel) | Not started | Medium |
 | Domain + DNS | Not started | Medium |
 | OG images for social sharing | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 6)
+
+- Replaced all inline error text with sonner toast notifications (`toast.error()`)
+- Removed `error` and `emailError` state variables from `ResumeUpload.tsx`
+- `src/lib/file-validation.ts`: `validateFile()` and `formatFileSize()` utilities
+- Client-side file validation at 3 points: file input, drag-drop, and submit (defense-in-depth)
+- Server-side file size validation: 413 response for files >5MB in `POST /api/roast`
+- File name + size displayed after upload (replaces generic "Click or drop to replace")
+- API timeout handling: 30s `AbortController` timeout with dedicated retry UI
+- "Try Again" button on timeout state, "Change resume" to return to form
+- `src/components/ErrorBoundary.tsx`: React class component error boundary with fire-themed fallback
+- ErrorBoundary wraps `{children}` in `layout.tsx` (Toaster stays outside for error-state toasts)
+- `src/app/roast/[id]/loading.tsx`: Skeleton loading UI matching results page layout
+- Mobile responsiveness: drop zone `p-6 sm:p-10`, segmented control `text-xs sm:text-sm`, retry buttons `flex-col sm:flex-row`
+- Email `onBlur` validation converted to `toast.error()`
+- Unit tests for `validateFile` and `formatFileSize` (10 tests)
+- E2E tests for error flows: API error toast, file info display, timeout retry UI, network error, no inline errors (6 tests)
+- Updated `email-capture.spec.ts` to check toast instead of inline error
 
 ### Implemented (Sprint 5)
 
@@ -140,8 +164,8 @@
 
 ### Known Issues
 
-- No error toast/notification on API failure (only inline text)
 - No favicon customization (uses default Next.js)
+- No `src/app/roast/[id]/error.tsx` for server component errors (ErrorBoundary only catches client-side)
 
 ## Tech Stack
 
@@ -183,8 +207,10 @@ src/
 │   │   └── cancel/page.tsx      # Payment cancelled page (Sprint 4)
 │   ├── roast/
 │   │   ├── page.tsx             # Shared results via ?r= query param (Sprint 1)
-│   │   └── [id]/page.tsx        # Permalink results from DB (Sprint 2)
-│   ├── layout.tsx               # Root layout (dark theme, Geist fonts)
+│   │   └── [id]/
+│   │       ├── page.tsx         # Permalink results from DB (Sprint 2)
+│   │       └── loading.tsx      # Skeleton loading UI (Sprint 6)
+│   ├── layout.tsx               # Root layout (dark theme, Geist fonts, ErrorBoundary — Sprint 6)
 │   ├── page.tsx                 # Main page (landing + results)
 │   └── globals.css              # Global styles, fire theme
 ├── components/
@@ -192,7 +218,8 @@ src/
 │   ├── AnimatedScore.tsx        # Animated score ring
 │   ├── FireParticles.tsx        # Background fire particles
 │   ├── LoadingRoast.tsx         # Loading state with jokes
-│   ├── ResumeUpload.tsx         # Upload/paste form
+│   ├── ErrorBoundary.tsx        # React error boundary with fire-themed fallback (Sprint 6)
+│   ├── ResumeUpload.tsx         # Upload/paste form (toasts, validation, timeout — Sprint 6)
 │   ├── RoastResults.tsx         # Free tier results + payment buttons (Sprint 4)
 │   ├── RoastResultsFull.tsx     # Paid tier results display (Sprint 3)
 │   ├── TierBadge.tsx            # Free/Full Roast tier badge (Sprint 3)
@@ -207,7 +234,8 @@ src/
     │   ├── checkout.test.ts     # Unit tests for checkout validation (Sprint 4)
     │   ├── credits.test.ts      # Unit tests for credit redemption (Sprint 4)
     │   ├── webhook.test.ts      # Unit tests for webhook logic (Sprint 4)
-    │   └── email.test.ts        # Unit tests for email validation (Sprint 5)
+    │   ├── email.test.ts        # Unit tests for email validation (Sprint 5)
+    │   └── file-validation.test.ts # Unit tests for file validation (Sprint 6)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
@@ -215,6 +243,7 @@ src/
     ├── score.ts                 # Score label utility
     ├── share.ts                 # Share URL encode/decode + buildShareUrlById
     ├── email.ts                 # Email validation utility (Sprint 5)
+    ├── file-validation.ts       # File validation + size formatting (Sprint 6)
     ├── stripe.ts                # Stripe client singleton (Sprint 4)
     ├── types.ts                 # TypeScript interfaces
     └── utils.ts                 # Utility functions

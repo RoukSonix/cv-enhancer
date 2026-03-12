@@ -4,10 +4,14 @@ import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Flame } from "lucide-react";
+import { Upload, Flame, AlertTriangle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { LoadingRoast } from "@/components/LoadingRoast";
 import { isValidEmail } from "@/lib/email";
+import { validateFile, formatFileSize } from "@/lib/file-validation";
 import type { RoastResult } from "@/lib/types";
+
+const ROAST_TIMEOUT_MS = 30_000;
 
 interface ResumeUploadProps {
   onResult: (result: RoastResult) => void;
@@ -20,27 +24,25 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
   const [text, setText] = useState("");
   const [email, setEmail] = useState("");
   const [marketingOptIn, setMarketingOptIn] = useState(false);
-  const [emailError, setEmailError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [timedOut, setTimedOut] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit() {
-    setError("");
-    setEmailError("");
     setLoading(true);
+    setTimedOut(false);
 
     try {
       // Email validation
       const isFree = tier !== "paid";
       if (isFree && (!email.trim() || !isValidEmail(email))) {
-        setEmailError("A valid email address is required.");
+        toast.error("A valid email address is required.");
         setLoading(false);
         return;
       }
       if (email.trim() && !isValidEmail(email)) {
-        setEmailError("Please enter a valid email address.");
+        toast.error("Please enter a valid email address.");
         setLoading(false);
         return;
       }
@@ -51,26 +53,53 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
       formData.set("marketingOptIn", marketingOptIn ? "true" : "false");
 
       if (mode === "upload" && file) {
+        const fileErr = validateFile(file);
+        if (fileErr) {
+          toast.error(fileErr);
+          setFile(null);
+          setLoading(false);
+          return;
+        }
         formData.set("resume", file);
       } else if (mode === "paste" && text.trim()) {
         formData.set("resumeText", text);
       } else {
-        setError("Please upload a PDF or paste your resume text.");
+        toast.error("Please upload a PDF or paste your resume text.");
         setLoading(false);
         return;
       }
 
-      const res = await fetch("/api/roast", { method: "POST", body: formData });
-      const data = await res.json();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        setTimedOut(true);
+      }, ROAST_TIMEOUT_MS);
 
-      if (!res.ok) {
-        setError(data.error || "Something went wrong.");
-        return;
+      try {
+        const res = await fetch("/api/roast", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error || "Something went wrong.");
+          return;
+        }
+        onResult(data as RoastResult);
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (err instanceof DOMException && err.name === "AbortError") {
+          toast.error("Request timed out. Please try again.");
+          setTimedOut(true);
+        } else {
+          toast.error("Network error. Please try again.");
+        }
       }
-
-      onResult(data as RoastResult);
     } catch {
-      setError("Network error. Please try again.");
+      toast.error("Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -80,12 +109,43 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped?.type === "application/pdf") {
-      setFile(dropped);
-      setError("");
+    if (!dropped) return;
+    const err = validateFile(dropped);
+    if (err) {
+      toast.error(err);
     } else {
-      setError("Only PDF files are accepted.");
+      setFile(dropped);
     }
+  }
+
+  if (timedOut) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto border-fire-orange/20">
+        <CardContent className="pt-6 text-center space-y-4">
+          <AlertTriangle className="w-10 h-10 mx-auto text-fire-orange" />
+          <p className="font-medium">The roast is taking longer than expected</p>
+          <p className="text-sm text-muted-foreground">
+            Our AI might be overwhelmed. Give it another shot.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <Button
+              onClick={() => { setTimedOut(false); handleSubmit(); }}
+              className="gradient-fire text-white font-semibold border-0"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setTimedOut(false)}
+              className="text-muted-foreground"
+            >
+              Change resume
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (loading) {
@@ -105,7 +165,7 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
         <div className="flex rounded-lg bg-muted p-1 w-fit mx-auto">
           <button
             onClick={() => setMode("upload")}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
               mode === "upload"
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -115,7 +175,7 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
           </button>
           <button
             onClick={() => setMode("paste")}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
               mode === "paste"
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -135,7 +195,7 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
             onDragLeave={() => setDragOver(false)}
             onClick={() => fileRef.current?.click()}
             className={`
-              border-2 border-dashed rounded-xl p-10 text-center cursor-pointer
+              border-2 border-dashed rounded-xl p-6 sm:p-10 text-center cursor-pointer
               transition-all duration-300
               ${
                 dragOver
@@ -152,8 +212,13 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) {
-                  setFile(f);
-                  setError("");
+                  const err = validateFile(f);
+                  if (err) {
+                    toast.error(err);
+                    e.target.value = "";
+                  } else {
+                    setFile(f);
+                  }
                 }
               }}
             />
@@ -162,7 +227,7 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
                 <Upload className="w-8 h-8 mx-auto text-fire-orange" />
                 <p className="text-sm font-medium text-foreground">{file.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  Click or drop to replace
+                  {formatFileSize(file.size)} · Click or drop to replace
                 </p>
               </div>
             ) : (
@@ -198,10 +263,10 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
               type="email"
               placeholder="your@email.com"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+              onChange={(e) => setEmail(e.target.value)}
               onBlur={() => {
                 if (email.trim() && !isValidEmail(email)) {
-                  setEmailError("Please enter a valid email address.");
+                  toast.error("Please enter a valid email address.");
                 }
               }}
               className="w-full rounded-md border border-muted-foreground/20 bg-background px-3 py-2 text-sm focus:border-fire-orange/50 focus:outline-none focus:ring-1 focus:ring-fire-orange/30 transition-colors"
@@ -209,7 +274,6 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
             {tier === "paid" && (
               <p className="text-xs text-muted-foreground mt-1">Optional — skip if you prefer</p>
             )}
-            {emailError && <p className="text-sm text-destructive mt-1">{emailError}</p>}
           </div>
 
           <label className="flex items-start gap-2 cursor-pointer">
@@ -226,8 +290,6 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
             We&apos;ll only use your email to deliver your results and, if opted in, send career tips. You can unsubscribe anytime.
           </p>
         </div>
-
-        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button
           onClick={handleSubmit}
