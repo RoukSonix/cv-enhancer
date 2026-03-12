@@ -6,10 +6,34 @@ const RESUME_TEXT =
   "Skills: JavaScript, Python, React, Node.js, AWS. " +
   "Education: BS Computer Science 2018.";
 
+const MOCK_ROAST_RESPONSE = {
+  id: "test12345678",
+  overallScore: 38,
+  summary: "Mock roast summary for E2E testing.",
+  topIssues: ["Issue 1", "Issue 2", "Issue 3"],
+  atsScore: 45,
+  atsIssues: ["Missing contact info"],
+  sections: [
+    { name: "First Impression", score: 35, roast: "Mock roast.", tips: ["Tip 1"] },
+  ],
+  rewrittenBullets: [],
+  createdAt: new Date().toISOString(),
+};
+
 test.describe("Roast Flow", () => {
-  // Single AI call test — covers full flow, share, payments, and reset
-  test("full roast lifecycle", async ({ page }) => {
-    test.slow(); // AI call can take 30-60s
+  test("full roast lifecycle (mocked API)", async ({ page }) => {
+    // Mock the API to avoid external AI dependency
+    await page.route("**/api/roast", (route) => {
+      if (route.request().method() === "POST") {
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(MOCK_ROAST_RESPONSE),
+        });
+      } else {
+        route.continue();
+      }
+    });
 
     // Submit
     await page.goto("/");
@@ -17,13 +41,8 @@ test.describe("Roast Flow", () => {
     await page.getByPlaceholder("Paste your resume text here").fill(RESUME_TEXT);
     await page.getByRole("button", { name: "Roast My Resume" }).click();
 
-    // Loading state
-    await expect(
-      page.locator("text=/Firing up|Judging|Counting|Checking|Evaluating|Consulting|Measuring|Scanning/")
-    ).toBeVisible({ timeout: 5000 });
-
-    // Wait for results
-    await expect(page.getByText("Your Resume Score")).toBeVisible({ timeout: 90000 });
+    // Wait for results (mocked — should be fast)
+    await expect(page.getByText("Your Resume Score")).toBeVisible({ timeout: 15000 });
 
     // Verify result sections
     await expect(page.getByText("Top Issues")).toBeVisible();
@@ -31,7 +50,7 @@ test.describe("Roast Flow", () => {
     await expect(page.getByText("First Impression")).toBeVisible();
     await expect(page.getByText("Want the Full Roast?")).toBeVisible();
 
-    // Share button → toast (clipboard may fail in headless/HTTP, so accept either toast)
+    // Share button → toast
     await page.getByRole("button", { name: "Share Results" }).click();
     await expect(page.getByText(/Link copied!|Failed to copy link/)).toBeVisible({ timeout: 5000 });
 

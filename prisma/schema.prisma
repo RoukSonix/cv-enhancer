@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Roast {
+  id           String   @id              // nanoid, 12 chars
+  resumeText   String                    // original resume text
+  resumeHash   String                    // SHA-256 hash for dedup
+  tier         String   @default("free") // "free" or "paid"
+  result       Json                      // full RoastResult JSON
+  overallScore Int                       // denormalized for queries
+  createdAt    DateTime @default(now())
+
+  @@index([resumeHash])
+  @@index([createdAt])
+}
