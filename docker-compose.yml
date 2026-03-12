@@ -29,6 +29,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./public:/app/public
+      - /app/src/generated  # preserve prisma generated client from build
     depends_on:
       db:
         condition: service_healthy
