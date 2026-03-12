@@ -219,12 +219,15 @@ Same treatment — add email confirmation line in the score header section.
 
 The `GET /api/roast/[id]` endpoint already returns the full `result` JSON which will now include `email`. The `SharedRoastView` component renders `RoastResults` or `RoastResultsFull`, which will pick up the email display from step 6.
 
-**Privacy consideration:** Email in shared results — the email is embedded in the `result` JSON stored in DB. On the shared permalink page, we should **not** display the email to protect privacy. Add a check:
+**Privacy consideration:** Email is embedded in the `result` JSON stored in DB. On the shared permalink page, we must **not** expose the email to protect privacy. **Strip email server-side** in `page.tsx` (the server component) before passing data to the client component — this prevents the email from ever reaching the browser on shared pages:
 
 ```tsx
-// In SharedRoastView or the page component, strip email before rendering
-const safeResult = { ...result, email: undefined };
+// In src/app/roast/[id]/page.tsx (server component), BEFORE passing to SharedRoastView:
+const safeResult = { ...roast.result, email: undefined, marketingOptIn: undefined };
+// Pass safeResult (not result) to SharedRoastView
 ```
+
+**Why server-side:** If stripped only in the client component (`SharedRoastView`), the email still travels in the serialized page props to the browser and could be visible in the page source/network tab. Server-side stripping ensures it never leaves the server.
 
 ---
 
@@ -232,7 +235,9 @@ const safeResult = { ...result, email: undefined };
 
 **File:** `src/app/api/admin/emails/route.ts` (NEW)
 
-Basic GET endpoint to export collected emails. No auth for now (as specified).
+Basic GET endpoint to export collected emails. **No auth for now** (deferred to future sprint).
+
+> **⚠ Security note:** This endpoint exposes PII (emails). Before any production deployment, add authentication (e.g., API key check or admin session). For local dev / staging this is acceptable.
 
 ```ts
 // GET /api/admin/emails
@@ -317,7 +322,18 @@ export async function GET(req: NextRequest) {
 | `marketingOptIn` defaults to false | Missing field defaults to false |
 | Email stored in DB after roast | Verify Prisma record has email |
 
-### E2E Tests
+### Existing E2E Test Updates
+
+**File:** `e2e/roast-flow.spec.ts` (MODIFY)
+
+The existing roast-flow test submits a free-tier roast without filling in an email. With email now required for free tier, the **submit button will be disabled** and the test will fail. Update the test to:
+
+1. Fill in a valid email (e.g., `test@example.com`) before clicking "Roast My Resume"
+2. Optionally assert the email confirmation text appears on the results page
+
+**File:** `e2e/paid-tier.spec.ts` — Review and confirm it still passes. Paid-tier tests should be unaffected since email is optional for paid tier, and the button enable logic only gates on email for free tier.
+
+### New E2E Tests
 
 **File:** `e2e/email-capture.spec.ts` (NEW)
 
@@ -364,3 +380,30 @@ export async function GET(req: NextRequest) {
 - Admin authentication for `/api/admin/emails`
 - Rate limiting on email collection
 - Email deduplication logic (same email, multiple roasts — allowed for now)
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-12
+
+### Checks Performed
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Prisma `email String?` nullable for backward compat | ✅ Correct — existing rows get `null`, no migration issues |
+| 2 | ResumeUpload works with existing `tier` prop | ✅ Correct — `tier?: "free" \| "paid"` already exists, plan keys off it properly |
+| 3 | Client + server email validation | ✅ Correct — shared `isValidEmail()` used in both layers |
+| 4 | Admin endpoint auth | ✅ Acceptable for dev — security warning added to plan |
+| 5 | Existing E2E tests won't break | ⚠️ **Fixed** — `roast-flow.spec.ts` would break (button disabled without email). Added update instructions to plan |
+| 6 | GDPR text legally sufficient | ✅ Adequate for MVP — covers purpose, consent, withdrawal right |
+| 7 | Email stripped from shared results | ⚠️ **Fixed** — changed from client-side to server-side stripping in `page.tsx` to prevent email leaking in page props |
+| 8 | formData approach with current API | ✅ Correct — API already uses formData, adding fields is straightforward |
+
+### Issues Found & Resolved
+
+1. **E2E test breakage (critical):** Existing `roast-flow.spec.ts` submits a free-tier roast without email. The new button-disable logic (`!emailOk`) would cause it to fail. → Added section requiring test update.
+
+2. **Privacy: client-side stripping insufficient:** Original plan stripped email in `SharedRoastView` (client component), but email would still be serialized in page props and visible in browser source/network tab. → Changed to server-side stripping in `page.tsx` before data reaches the client.
+
+3. **Admin endpoint security note:** Added explicit warning about PII exposure before production deployment.
