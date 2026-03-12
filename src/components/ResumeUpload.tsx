@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Flame } from "lucide-react";
 import { LoadingRoast } from "@/components/LoadingRoast";
+import { isValidEmail } from "@/lib/email";
 import type { RoastResult } from "@/lib/types";
 
 interface ResumeUploadProps {
@@ -17,6 +18,9 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
   const [mode, setMode] = useState<"upload" | "paste">("upload");
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
+  const [email, setEmail] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -24,11 +28,27 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
 
   async function handleSubmit() {
     setError("");
+    setEmailError("");
     setLoading(true);
 
     try {
+      // Email validation
+      const isFree = tier !== "paid";
+      if (isFree && (!email.trim() || !isValidEmail(email))) {
+        setEmailError("A valid email address is required.");
+        setLoading(false);
+        return;
+      }
+      if (email.trim() && !isValidEmail(email)) {
+        setEmailError("Please enter a valid email address.");
+        setLoading(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.set("tier", tier ?? "free");
+      formData.set("email", email.trim());
+      formData.set("marketingOptIn", marketingOptIn ? "true" : "false");
 
       if (mode === "upload" && file) {
         formData.set("resume", file);
@@ -167,11 +187,55 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
           />
         )}
 
+        {/* Email capture */}
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+              onBlur={() => {
+                if (email.trim() && !isValidEmail(email)) {
+                  setEmailError("Please enter a valid email address.");
+                }
+              }}
+              className="w-full rounded-md border border-muted-foreground/20 bg-background px-3 py-2 text-sm focus:border-fire-orange/50 focus:outline-none focus:ring-1 focus:ring-fire-orange/30 transition-colors"
+            />
+            {tier === "paid" && (
+              <p className="text-xs text-muted-foreground mt-1">Optional — skip if you prefer</p>
+            )}
+            {emailError && <p className="text-sm text-destructive mt-1">{emailError}</p>}
+          </div>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={marketingOptIn}
+              onChange={(e) => setMarketingOptIn(e.target.checked)}
+              className="mt-0.5 rounded border-muted-foreground/30"
+            />
+            <span className="text-sm">Send me resume tips & career advice</span>
+          </label>
+
+          <p className="text-xs text-muted-foreground">
+            We&apos;ll only use your email to deliver your results and, if opted in, send career tips. You can unsubscribe anytime.
+          </p>
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button
           onClick={handleSubmit}
-          disabled={mode === "upload" ? !file : !text.trim()}
+          disabled={(() => {
+            const hasResume = mode === "upload" ? !!file : !!text.trim();
+            const emailOk = tier === "paid" || isValidEmail(email);
+            return !hasResume || !emailOk;
+          })()}
           className="w-full gradient-fire text-white font-semibold text-base h-12 hover:opacity-90 transition-opacity border-0"
           size="lg"
         >

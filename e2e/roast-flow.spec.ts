@@ -38,6 +38,7 @@ test.describe("Roast Flow", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Paste Text" }).click();
     await page.getByPlaceholder("Paste your resume text here").fill(RESUME_TEXT);
+    await page.getByPlaceholder("your@email.com").fill("test@example.com");
     await page.getByRole("button", { name: "Roast My Resume" }).click();
 
     // Wait for results

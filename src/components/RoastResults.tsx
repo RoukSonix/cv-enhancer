@@ -110,6 +110,11 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
           <p className="text-sm leading-relaxed text-muted-foreground max-w-lg mx-auto">
             {result.summary}
           </p>
+          {result.email && (
+            <p className="text-xs text-muted-foreground">
+              Results sent to <span className="font-medium text-foreground">{result.email}</span>
+            </p>
+          )}
         </CardContent>
       </Card>
 

@@ -18,10 +18,14 @@ test.describe("Landing Page", () => {
     await expect(page.getByRole("button", { name: "Roast My Resume" })).toBeDisabled();
   });
 
-  test("roast button enables after pasting text", async ({ page }) => {
+  test("roast button enables after pasting text and email", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Paste Text" }).click();
     await page.getByPlaceholder("Paste your resume text here").fill("Test resume content for validation.");
+    // Button still disabled without email (free tier)
+    await expect(page.getByRole("button", { name: "Roast My Resume" })).toBeDisabled();
+    // Fill email to enable
+    await page.getByPlaceholder("your@email.com").fill("test@example.com");
     await expect(page.getByRole("button", { name: "Roast My Resume" })).toBeEnabled();
   });
 

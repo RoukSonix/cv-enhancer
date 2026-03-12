@@ -57,5 +57,7 @@ export default async function RoastByIdPage({ params }: PageProps) {
   }
 
   const result = roast.result as unknown as RoastResult;
-  return <SharedRoastView result={result} />;
+  // Strip email from shared results to protect privacy (server-side)
+  const safeResult = { ...result, email: undefined, marketingOptIn: undefined };
+  return <SharedRoastView result={safeResult} />;
 }

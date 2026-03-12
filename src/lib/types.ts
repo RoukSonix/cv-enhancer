@@ -23,6 +23,8 @@ export interface RoastResult {
   createdAt: string;
   tier?: "free" | "paid";
   paid?: boolean;
+  email?: string;
+  marketingOptIn?: boolean;
 }
 
 export interface RoastRequest {
