@@ -21,6 +21,22 @@ docker compose up -d
 - PDF parsing: pdf-parse
 - Docker Compose for dev/prod
 
+## Testing
+
+```bash
+# Unit tests (vitest)
+npm test
+
+# E2E tests (Playwright, requires Docker on port 3000)
+docker compose up -d
+npm run e2e
+```
+
+- **Unit tests:** `src/lib/__tests__/` — encoding/decoding, share utils (14 tests)
+- **E2E tests:** `e2e/` — landing page, full roast flow, share results (9 tests)
+- Roast flow test depends on external AI API and is marked `test.slow()`
+- Share result tests use precomputed payload (no AI dependency)
+
 ## Documentation
 
 All docs live in [`docs/`](./docs/):
