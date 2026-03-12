@@ -46,6 +46,12 @@ export async function POST(req: NextRequest) {
     let resumeText = "";
 
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: "File too large. Maximum size is 5MB." },
+          { status: 413 }
+        );
+      }
       const buffer = Buffer.from(await file.arrayBuffer());
       resumeText = await extractTextFromPdf(buffer);
     } else if (textInput) {
