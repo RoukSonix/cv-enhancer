@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { PDFParse } from "pdf-parse";
 import { nanoid } from "nanoid";
-import { openrouter, MODEL } from "@/lib/openrouter";
-import { buildRoastPrompt } from "@/lib/prompt";
 import { prisma } from "@/lib/prisma";
+import { runRoastAI } from "@/lib/roast-ai";
 import type { Prisma } from "@/generated/prisma/client";
 import type { RoastResult } from "@/lib/types";
 
@@ -48,40 +47,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const prompt = buildRoastPrompt(resumeText, tier);
-
-    const completion = await openrouter.chat.completions.create({
-      model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.8,
-      max_tokens: 3000,
-    });
-
-    const raw = completion.choices[0]?.message?.content || "";
-
-    // Extract JSON from the response (handle models that wrap in code fences)
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error("Failed to parse AI response:", raw);
-      return NextResponse.json(
-        { error: "AI returned an invalid response. Please try again." },
-        { status: 500 }
-      );
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]);
+    const aiResult = await runRoastAI(resumeText, tier);
 
     const result: RoastResult = {
+      ...aiResult,
       id: nanoid(12),
-      overallScore: parsed.overallScore ?? 0,
-      summary: parsed.summary ?? "",
-      sections: parsed.sections ?? [],
-      atsScore: parsed.atsScore ?? 0,
-      atsIssues: parsed.atsIssues ?? [],
-      rewrittenBullets: parsed.rewrittenBullets ?? [],
-      topIssues: parsed.topIssues ?? [],
       createdAt: new Date().toISOString(),
-      tier,
     };
 
     // Persist to database (best-effort — don't fail the request if DB is down)
