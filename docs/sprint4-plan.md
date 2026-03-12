@@ -203,13 +203,14 @@ Validation:
 Logic:
   1. Look up Roast by ID, verify it exists and is not paid
   2. Select price ID based on priceType
-  3. Create Stripe Checkout Session:
+  3. If priceType === "bundle": generate bundleToken = nanoid(16)
+  4. Create Stripe Checkout Session:
      - mode: "payment"
      - line_items: [{ price: priceId, quantity: 1 }]
-     - metadata: { roastId, priceType }
+     - metadata: { roastId, priceType, bundleToken (if bundle, else omit) }
      - success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`
      - cancel_url: `${origin}/checkout/cancel?roast_id=${roastId}`
-  4. Return { url: session.url }
+  5. Return { url: session.url }
 
 Response: { url: string }
 Status codes: 200, 400 (validation), 404 (roast not found), 409 (already paid), 500
@@ -260,35 +261,37 @@ POST /api/checkout/redeem
 
 Request body (JSON):
   {
-    roastId: string,       // roast to upgrade
-    bundleToken: string    // from cookie
+    roastId: string       // roast to upgrade
   }
 
 Logic:
-  1. Validate roastId exists and is not paid
-  2. Find an unused Credit where bundleToken matches and roastId is null
-  3. If no credits available → 402 Payment Required
-  4. In a transaction:
+  1. Read bundleToken from `bundle_token` HttpOnly cookie
+  2. Validate roastId exists and is not paid
+  3. Find an unused Credit where bundleToken matches and roastId is null
+  4. If no cookie or no credits available → 402 Payment Required
+  5. In a transaction:
      a. Update Credit: set roastId, usedAt
      b. Update Roast: paid=true, paidAt=now(), creditId=credit.id
      c. Re-run AI with paid prompt
      d. Update Roast result with paid-tier data
 
 Response: { success: true, creditsRemaining: number }
-Status codes: 200, 400, 402 (no credits), 404, 409 (already paid), 500
+Status codes: 200, 400, 402 (no credits/no cookie), 404, 409 (already paid), 500
 ```
 
 ### 5e. `src/app/api/checkout/credits/route.ts` — Check Bundle Credits
 
 ```
-GET /api/checkout/credits?bundleToken=<token>
+GET /api/checkout/credits
 
 Logic:
-  1. Count unused Credits where bundleToken matches and roastId is null
-  2. Return { credits: number }
+  1. Read bundleToken from `bundle_token` HttpOnly cookie
+  2. If no cookie → return { credits: 0 }
+  3. Count unused Credits where bundleToken matches and roastId is null
+  4. Return { credits: number }
 
 Response: { credits: number }
-Status codes: 200, 400 (missing token)
+Status codes: 200
 ```
 
 ### 5f. `src/app/checkout/success/page.tsx` — Payment Success Page
@@ -301,7 +304,8 @@ Logic (server component):
   2. Extract roastId and priceType from session metadata
   3. Verify payment_status === "paid"
   4. If bundle: set bundleToken cookie (HttpOnly, Secure, SameSite=Lax, 1 year expiry)
-     - bundleToken is fetched from Credit records linked to this session
+     - bundleToken is read directly from Stripe session metadata (set at checkout creation)
+     - This avoids a race condition: Credits are created by the webhook which may not have fired yet
   5. Show brief "Payment successful!" message
   6. Client-side: poll GET /api/roast/[id] until tier === "paid" (webhook may still be processing)
   7. Once ready → redirect to /roast/[id]
@@ -339,14 +343,17 @@ UI:
 
 **New behavior for "Get Full Roast — $9.99" button:**
 ```
-onClick:
-  1. If bundleToken cookie exists:
-     a. GET /api/checkout/credits?bundleToken=...
-     b. If credits > 0: POST /api/checkout/redeem { roastId, bundleToken }
-     c. On success: redirect to /roast/[id] (will show paid results)
-  2. Else:
-     a. POST /api/checkout { roastId: result.id, priceType: "single" }
-     b. Redirect to response.url (Stripe Checkout)
+On mount (or via parent):
+  1. GET /api/checkout/credits (server reads cookie automatically)
+  2. If credits > 0: show "Use Credit (N remaining)" button instead
+
+onClick "Use Credit":
+  POST /api/checkout/redeem { roastId } (server reads cookie automatically)
+  On success: redirect to /roast/[id] (will show paid results)
+
+onClick "$9.99":
+  POST /api/checkout { roastId: result.id, priceType: "single" }
+  Redirect to response.url (Stripe Checkout)
 ```
 
 **New "3 for $24.99" button:**
@@ -417,7 +424,7 @@ POST /api/webhooks/stripe
 4. if (event.type !== "checkout.session.completed") return Response(200)
 
 5. const session = event.data.object as Stripe.Checkout.Session
-6. const { roastId, priceType } = session.metadata
+6. const { roastId, priceType, bundleToken } = session.metadata
 
 7. // Idempotency check
    const existing = await prisma.roast.findUnique({
@@ -438,7 +445,7 @@ POST /api/webhooks/stripe
 
 9. // Handle bundle credits
    if (priceType === "bundle") {
-     const bundleToken = nanoid(16)
+     // bundleToken was generated at checkout creation and passed via metadata
      await prisma.credit.createMany({
        data: [
          { bundleToken, stripeSessionId: session.id, roastId, usedAt: new Date() },  // 1st credit used now
@@ -448,12 +455,14 @@ POST /api/webhooks/stripe
      })
    }
 
-10. // Re-run AI with paid prompt
+10. // Re-run AI with paid prompt (use shared helper from src/lib/roast-ai.ts)
     try {
       const roast = await prisma.roast.findUnique({
         where: { id: roastId },
         select: { resumeText: true }
       })
+      // Use shared runRoastAI(resumeText, "paid") helper
+      // (same logic as POST /api/roast — extracted to avoid duplication)
       const prompt = buildRoastPrompt(roast.resumeText, "paid")
       const completion = await openrouter.chat.completions.create({ ... })
       const parsed = JSON.parse(extractJson(completion))
@@ -502,14 +511,14 @@ If the AI call fails during webhook processing:
 1. **Purchase:** User buys bundle → webhook creates 3 `Credit` rows with shared `bundleToken`
 2. **First credit:** Used immediately for the current roast (set in webhook)
 3. **Cookie:** Success page sets `bundleToken` cookie (read from Credits linked to session)
-4. **Future roasts:** Frontend checks cookie → calls `GET /api/checkout/credits?bundleToken=...`
+4. **Future roasts:** Frontend calls `GET /api/checkout/credits` (server reads bundleToken from HttpOnly cookie)
 5. **Display:** If credits > 0, show "Use Credit (N remaining)" instead of "$9.99" button
-6. **Redeem:** POST `/api/checkout/redeem` with roastId + bundleToken → upgrades roast using a credit
+6. **Redeem:** POST `/api/checkout/redeem` with roastId (server reads bundleToken from HttpOnly cookie) → upgrades roast using a credit
 
 ### Cookie spec:
 - Name: `bundle_token`
 - Value: the `bundleToken` string (nanoid(16))
-- HttpOnly: false (needs to be read by client JS for API calls)
+- HttpOnly: true (server reads cookie from request; no client JS access needed — more secure against XSS)
 - Secure: true (HTTPS only in production)
 - SameSite: Lax
 - Max-Age: 31536000 (1 year)
@@ -532,7 +541,8 @@ The `/api/checkout` endpoint must verify the request originates from our site:
 // In POST /api/checkout
 const origin = req.headers.get("origin");
 const host = req.headers.get("host");
-const expectedOrigin = `https://${host}`;  // or http:// in dev
+const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+const expectedOrigin = `${protocol}://${host}`;
 
 if (!origin || origin !== expectedOrigin) {
   return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
@@ -540,6 +550,8 @@ if (!origin || origin !== expectedOrigin) {
 ```
 
 This prevents external sites from triggering checkout sessions for arbitrary roasts. The webhook endpoint does NOT need CSRF — it's protected by Stripe signature verification instead.
+
+**Note:** The protocol check uses `NODE_ENV` to support `http://localhost:3000` in dev and `https://` in production.
 
 ---
 
@@ -566,22 +578,25 @@ The success page needs to wait for the webhook to finish processing (AI re-run c
 
 ## 11. Files Summary
 
-### New Files (7)
+### New Files (9)
 | File | Purpose |
 |------|---------|
 | `src/lib/stripe.ts` | Stripe client singleton + price ID exports |
+| `src/lib/roast-ai.ts` | Shared AI call + result parsing (used by POST /api/roast and webhook) |
 | `src/app/api/checkout/route.ts` | POST: create Stripe Checkout session |
 | `src/app/api/checkout/redeem/route.ts` | POST: redeem bundle credit |
-| `src/app/api/checkout/credits/route.ts` | GET: check remaining credits |
+| `src/app/api/checkout/credits/route.ts` | GET: check remaining credits (reads cookie server-side) |
 | `src/app/api/webhooks/stripe/route.ts` | POST: handle Stripe webhook events |
+| `src/app/api/roast/[id]/upgrade/route.ts` | POST: retry AI re-run for paid roasts stuck on free tier |
 | `src/app/checkout/success/page.tsx` | Payment success + polling + redirect |
 | `src/app/checkout/cancel/page.tsx` | Payment cancelled + retry CTA |
 
-### Modified Files (5)
+### Modified Files (6)
 | File | Changes |
 |------|---------|
 | `prisma/schema.prisma` | Add `paid`, `stripeSessionId`, `paidAt`, `creditId` to Roast; add `Credit` model |
 | `src/components/RoastResults.tsx` | Wire payment buttons to checkout/redeem flow |
+| `src/app/api/roast/route.ts` | Extract AI call logic into `src/lib/roast-ai.ts`, import shared helper |
 | `src/lib/types.ts` | Add `paid?: boolean` to `RoastResult` |
 | `.env.example` | Add 5 Stripe env vars |
 | `package.json` | Add `stripe` dependency |
