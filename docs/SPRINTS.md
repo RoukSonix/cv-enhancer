@@ -69,7 +69,9 @@
 
 ---
 
-## Sprint 3: Paid Tier UI (Full Roast)
+## Sprint 3: Paid Tier UI (Full Roast) — COMPLETE
+
+**Completed:** 2026-03-12 | **PR:** [#8](https://github.com/RoukSonix/cv-enhancer/pull/8)
 
 **Goal:** Display full roast results for paid users — all 5 sections, rewritten bullets.
 
