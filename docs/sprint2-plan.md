@@ -196,7 +196,7 @@ DATABASE_URL=postgresql://cvenhancer:cvenhancer@localhost:5432/cvenhancer
 
 After the AI response is parsed and `result` is constructed:
 
-1. Import `prisma` from `@/lib/prisma` and `nanoid` from `nanoid`
+1. Import `prisma` from `@/lib/prisma`, `nanoid` from `nanoid`, and `type { Prisma }` from `@prisma/client`
 2. Import `createHash` from `crypto` (Node.js built-in)
 3. Replace `crypto.randomUUID()` with `nanoid(12)` for the result `id`
 4. Compute `resumeHash = createHash('sha256').update(resumeText).digest('hex')`
@@ -256,6 +256,7 @@ export async function GET(
 **File: `src/app/roast/[id]/page.tsx`** (NEW)
 
 ```typescript
+import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -267,12 +268,19 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
+// Deduplicate the DB query between generateMetadata and the page component.
+// React cache() ensures the query runs only once per request.
+const getRoast = cache(async (id: string) => {
   const roast = await prisma.roast.findUnique({
     where: { id },
     select: { result: true },
   });
+  return roast;
+});
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const roast = await getRoast(id);
 
   if (!roast) {
     return { title: "Not Found | Resume Roaster" };
@@ -302,10 +310,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function RoastByIdPage({ params }: PageProps) {
   const { id } = await params;
-  const roast = await prisma.roast.findUnique({
-    where: { id },
-    select: { result: true },
-  });
+  const roast = await getRoast(id);
 
   if (!roast) {
     notFound();
@@ -484,3 +489,37 @@ Add new tests for DB-backed share URLs:
 | Large `result` JSON in DB | PostgreSQL `jsonb` handles this efficiently; typical roast result is <5KB |
 | `prisma db push` in production | Only for dev; Sprint 7 switches to `prisma migrate deploy` |
 | Old share URLs breaking | They don't — `/roast?r=` route is unchanged and always decodes client-side |
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-12
+**Validator:** Claude (Plan Validation Agent)
+
+### Validation Checklist
+
+| Check | Result |
+|-------|--------|
+| Prisma setup correct for Next.js 16 + Docker | PASS |
+| `prisma generate` works in Dockerfile | PASS — runs after `COPY . .` includes schema |
+| PostgreSQL healthcheck correct | PASS — `pg_isready -U cvenhancer` available in alpine image |
+| App waits for Postgres readiness | PASS — `depends_on: condition: service_healthy` |
+| nanoid(12) collision-safe for SaaS | PASS — 64^12 ≈ 4.7×10^21 possibilities |
+| `/roast/[id]` vs `/roast?r=` route conflict | PASS — separate Next.js routes, no conflict |
+| JSON storage with Prisma + PostgreSQL | PASS — `Json` type maps to `jsonb`, works with `RoastResult` |
+| DATABASE_URL format | PASS — Docker uses `db` hostname, `.env.example` uses `localhost` |
+| Prisma client singleton pattern | PASS — standard `globalThis` pattern for Next.js |
+| Backward compatibility strategy | PASS — old `/roast?r=` links work unchanged |
+
+### Issues Found and Fixed
+
+1. **Double DB query in `/roast/[id]/page.tsx`** — Both `generateMetadata` and the page component called `prisma.roast.findUnique` independently, causing two DB hits per request. **Fixed:** Wrapped the query in React `cache()` to deduplicate within a single request lifecycle.
+
+2. **Missing `Prisma` type import in section 6.1** — The code referenced `Prisma.JsonObject` but the import list only mentioned `prisma` and `nanoid`. **Fixed:** Added `type { Prisma }` from `@prisma/client` to the import list.
+
+### Notes (non-blocking)
+
+- **`nanoid` v5 is ESM-only** — works fine in Next.js API routes and vitest since both handle ESM through their bundlers. No action needed.
+- **`prisma/` directory not volume-mounted** — schema changes during development require `docker compose build`. Consider adding `./prisma:/app/prisma` to volumes if frequent schema iteration is expected (optional DX improvement, not required for Sprint 2).
+- **`prisma generate` in `postinstall`** — consider adding `"postinstall": "prisma generate"` to package.json scripts for smoother DX when running `npm install` locally (optional).
