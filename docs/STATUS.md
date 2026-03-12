@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-12 (Sprint 4)
+**Last updated:** 2026-03-12 (Sprint 5)
 
 ## Current State
 
@@ -36,6 +36,11 @@
 | PostgreSQL database | Working | Roast results persisted via Prisma ORM |
 | GET /api/roast/[id] | Working | Fetch saved roast by nanoid |
 | OG meta tags (permalink) | Working | `generateMetadata` with React `cache()` dedup |
+| Email capture (free tier) | Working | Required for free, optional for paid; stored in DB |
+| Marketing opt-in checkbox | Working | GDPR-compliant, unchecked by default |
+| Email on results page | Working | Confirmation line below score card |
+| Email stripped on shared pages | Working | Server-side stripping in `/roast/[id]` |
+| Admin email export | Working | GET `/api/admin/emails` (JSON + CSV, no auth) |
 
 ### Not Implemented (Stubs / Missing)
 
@@ -43,13 +48,27 @@
 |---------|--------|----------|
 | PDF Upload validation | Needs manual testing | Medium |
 | Payments (Stripe) | Implemented (Sprint 4) | High |
-| Email capture | Not started | Medium |
+| Email capture | Implemented (Sprint 5) | Medium |
 | Auth | Not started | Low |
 | Deploy (Vercel) | Not started | Medium |
 | Domain + DNS | Not started | Medium |
 | OG images for social sharing | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 5)
+
+- Email capture on upload form: required for free tier, optional for paid tier
+- Prisma schema: `email` (String?) and `marketingOptIn` (Boolean, default false) on Roast, with email index
+- `src/lib/email.ts`: `isValidEmail()` utility (shared client + server)
+- `ResumeUpload.tsx`: email input, marketing opt-in checkbox, GDPR consent text, client-side validation
+- `POST /api/roast`: server-side email validation, stores email + marketingOptIn in DB
+- `RoastResults.tsx` / `RoastResultsFull.tsx`: email confirmation line on results page
+- `roast/[id]/page.tsx`: strips email server-side before passing to client (privacy)
+- `GET /api/admin/emails`: email export endpoint (JSON + CSV), no auth (dev only)
+- Unit tests for `isValidEmail()` (8 tests)
+- E2E tests for email capture (8 tests)
+- Updated existing E2E tests (roast-flow, paid-tier, landing) to fill email
 
 ### Implemented (Sprint 4)
 
@@ -144,6 +163,8 @@
 src/
 ├── app/
 │   ├── api/
+│   │   ├── admin/
+│   │   │   └── emails/route.ts  # GET: email export endpoint (Sprint 5)
 │   │   ├── checkout/
 │   │   │   ├── route.ts         # POST: create Stripe Checkout session (Sprint 4)
 │   │   │   ├── credits/route.ts # GET: check remaining bundle credits (Sprint 4)
@@ -185,13 +206,15 @@ src/
     │   ├── stripe.test.ts       # Unit tests for Stripe env validation (Sprint 4)
     │   ├── checkout.test.ts     # Unit tests for checkout validation (Sprint 4)
     │   ├── credits.test.ts      # Unit tests for credit redemption (Sprint 4)
-    │   └── webhook.test.ts      # Unit tests for webhook logic (Sprint 4)
+    │   ├── webhook.test.ts      # Unit tests for webhook logic (Sprint 4)
+    │   └── email.test.ts        # Unit tests for email validation (Sprint 5)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
     ├── roast-ai.ts              # Shared AI call helper (Sprint 4)
     ├── score.ts                 # Score label utility
     ├── share.ts                 # Share URL encode/decode + buildShareUrlById
+    ├── email.ts                 # Email validation utility (Sprint 5)
     ├── stripe.ts                # Stripe client singleton (Sprint 4)
     ├── types.ts                 # TypeScript interfaces
     └── utils.ts                 # Utility functions

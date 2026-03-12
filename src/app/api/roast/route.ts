@@ -4,6 +4,7 @@ import { PDFParse } from "pdf-parse";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { runRoastAI } from "@/lib/roast-ai";
+import { isValidEmail } from "@/lib/email";
 import type { Prisma } from "@/generated/prisma/client";
 import type { RoastResult } from "@/lib/types";
 
@@ -25,6 +26,22 @@ export async function POST(req: NextRequest) {
     const file = formData.get("resume") as File | null;
     const textInput = formData.get("resumeText") as string | null;
     const tier = (formData.get("tier") as "free" | "paid") || "free";
+    const email = (formData.get("email") as string | null)?.trim() || null;
+    const marketingOptIn = formData.get("marketingOptIn") === "true";
+
+    // Server-side email validation
+    if (tier === "free" && (!email || !isValidEmail(email))) {
+      return NextResponse.json(
+        { error: "A valid email address is required for the free roast." },
+        { status: 400 }
+      );
+    }
+    if (email && !isValidEmail(email)) {
+      return NextResponse.json(
+        { error: "Invalid email address format." },
+        { status: 400 }
+      );
+    }
 
     let resumeText = "";
 
@@ -53,6 +70,8 @@ export async function POST(req: NextRequest) {
       ...aiResult,
       id: nanoid(12),
       createdAt: new Date().toISOString(),
+      email: email ?? undefined,
+      marketingOptIn,
     };
 
     // Persist to database (best-effort — don't fail the request if DB is down)
@@ -66,6 +85,8 @@ export async function POST(req: NextRequest) {
           tier,
           result: result as unknown as Prisma.JsonObject,
           overallScore: result.overallScore,
+          email,
+          marketingOptIn,
         },
       });
     } catch (dbError) {

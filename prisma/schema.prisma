@@ -22,8 +22,13 @@ model Roast {
   paidAt          DateTime?                  // when payment was confirmed
   creditId        String?                    // links to Credit if upgraded via bundle
 
+  // Sprint 5: Email capture
+  email           String?                    // user's email (required for free, optional for paid)
+  marketingOptIn  Boolean   @default(false)  // true if user checked "Send me resume tips"
+
   @@index([resumeHash])
   @@index([createdAt])
+  @@index([email])
 }
 
 model Credit {
