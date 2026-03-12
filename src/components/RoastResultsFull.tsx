@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AnimatedScore } from "@/components/AnimatedScore";
+import { TierBadge } from "@/components/TierBadge";
 import {
   AlertTriangle,
   Lightbulb,
@@ -12,13 +13,9 @@ import {
   Scan,
   Check,
   X,
-  Flame,
 } from "lucide-react";
-import { TierBadge } from "@/components/TierBadge";
 import type { RoastResult } from "@/lib/types";
 import { scoreLabel } from "@/lib/score";
-
-export { scoreLabel };
 
 function scoreBadgeStyle(score: number): string {
   if (score >= 80) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
@@ -26,20 +23,24 @@ function scoreBadgeStyle(score: number): string {
   return "bg-red-500/10 text-red-400 border-red-500/20";
 }
 
-interface RoastResultsProps {
+function sectionAccentColor(score: number): string {
+  if (score >= 80) return "border-l-emerald-500/60";
+  if (score >= 60) return "border-l-amber-500/60";
+  return "border-l-fire-orange/60";
+}
+
+interface RoastResultsFullProps {
   result: RoastResult;
   onReset: () => void;
 }
 
-export function RoastResults({ result, onReset }: RoastResultsProps) {
-  const isFree = result.tier !== "paid";
-
+export function RoastResultsFull({ result, onReset }: RoastResultsFullProps) {
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
       {/* Overall Score */}
-      <Card className="border-fire-orange/10 overflow-hidden">
+      <Card className="border-fire-orange/10 overflow-hidden glow-premium">
         <CardContent className="pt-8 pb-8 text-center space-y-4">
-          <TierBadge tier="free" />
+          <TierBadge tier="paid" />
           <p className="text-sm text-muted-foreground uppercase tracking-widest">
             Your Resume Score
           </p>
@@ -116,11 +117,11 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
         </CardContent>
       </Card>
 
-      {/* Section Breakdowns */}
+      {/* Section Breakdowns (all 5) */}
       {result.sections.map((section, i) => (
         <Card
           key={i}
-          className="border-fire-orange/10 border-l-4 border-l-fire-orange/40"
+          className={`border-fire-orange/10 border-l-4 ${sectionAccentColor(section.score)}`}
         >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -149,7 +150,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
         </Card>
       ))}
 
-      {/* Rewritten Bullets (paid only) */}
+      {/* Rewritten Bullets */}
       {result.rewrittenBullets.length > 0 && (
         <Card className="border-fire-orange/10">
           <CardHeader>
@@ -180,37 +181,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
         </Card>
       )}
 
-      {/* Upsell (free tier) */}
-      {isFree && (
-        <div className="relative rounded-xl p-[1px] overflow-hidden">
-          {/* Gradient border effect */}
-          <div className="absolute inset-0 gradient-fire opacity-50" />
-          <Card className="relative border-0 bg-card">
-            <CardContent className="pt-6 text-center space-y-4">
-              <Flame className="w-8 h-8 mx-auto text-fire-orange animate-flicker" />
-              <p className="font-bold text-xl text-gradient-fire">
-                Want the Full Roast?
-              </p>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Get detailed breakdown of all 5 sections, 3 rewritten bullet points,
-                full ATS analysis, and specific tips for every section.
-              </p>
-              <Button
-                size="lg"
-                className="w-full gradient-fire text-white font-semibold h-12 hover:opacity-90 transition-opacity border-0 animate-pulse-glow"
-                onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
-              >
-                Get Full Roast -- $9.99
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Or get 3 roasts for $24.99
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Cross-sell */}
+      {/* Cross-sell (no upsell for paid tier) */}
       <Card className="border-fire-orange/10 bg-muted/30">
         <CardContent className="pt-6 text-center space-y-3">
           <p className="font-semibold">Need a better resume?</p>

@@ -10,9 +10,10 @@ import type { RoastResult } from "@/lib/types";
 
 interface ResumeUploadProps {
   onResult: (result: RoastResult) => void;
+  tier?: "free" | "paid";
 }
 
-export function ResumeUpload({ onResult }: ResumeUploadProps) {
+export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
   const [mode, setMode] = useState<"upload" | "paste">("upload");
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
@@ -27,7 +28,7 @@ export function ResumeUpload({ onResult }: ResumeUploadProps) {
 
     try {
       const formData = new FormData();
-      formData.set("tier", "free");
+      formData.set("tier", tier ?? "free");
 
       if (mode === "upload" && file) {
         formData.set("resume", file);

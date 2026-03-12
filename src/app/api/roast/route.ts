@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       rewrittenBullets: parsed.rewrittenBullets ?? [],
       topIssues: parsed.topIssues ?? [],
       createdAt: new Date().toISOString(),
+      tier,
     };
 
     // Persist to database (best-effort — don't fail the request if DB is down)
