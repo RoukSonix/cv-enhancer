@@ -91,7 +91,7 @@ test.describe("Email Capture", () => {
     // Use a roast ID that would be fetched from DB — mock the server response
     // For the permalink page, the server strips email. We test with the /roast?r= route
     // which uses encoded data (no email in the encoded payload).
-    const { compressToEncodedURIComponent } = await import("lz-string");
+    const { compressToEncodedURIComponent } = require("lz-string");
     const payload = {
       v: 1,
       s: 42,
