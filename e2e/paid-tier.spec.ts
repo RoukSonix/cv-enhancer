@@ -64,7 +64,7 @@ test.describe("Paid Tier UI", () => {
     await page.getByRole("button", { name: "Roast My Resume" }).click();
 
     await expect(page.getByText("Your Resume Score")).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText("Free Roast")).toBeVisible();
+    await expect(page.getByText("Free Roast", { exact: true })).toBeVisible();
     await expect(page.getByText("Want the Full Roast?")).toBeVisible();
   });
 
@@ -114,7 +114,7 @@ test.describe("Paid Tier UI", () => {
     await expect(page.getByText("Work Experience")).toBeVisible();
     await expect(page.getByText("Skills & Keywords")).toBeVisible();
     await expect(page.getByText("Education & Certs")).toBeVisible();
-    await expect(page.getByText("Overall Impact")).toBeVisible();
+    await expect(page.getByText("Overall Impact", { exact: true })).toBeVisible();
   });
 
   test("paid roast shows rewritten bullets section", async ({ page }) => {
