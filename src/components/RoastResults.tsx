@@ -18,6 +18,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { TierBadge } from "@/components/TierBadge";
+import { ShareButtons } from "@/components/ShareButtons";
 import type { RoastResult } from "@/lib/types";
 import { scoreLabel } from "@/lib/score";
 
@@ -334,6 +335,18 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
           Roast Another Resume
         </Button>
       </div>
+
+      {/* Share buttons */}
+      {result.id && (
+        <div className="pt-2">
+          <p className="text-center text-sm text-muted-foreground mb-3">Share your results</p>
+          <ShareButtons
+            score={result.overallScore}
+            label={scoreLabel(result.overallScore)}
+            url={typeof window !== "undefined" ? `${window.location.origin}/roast/${result.id}` : ""}
+          />
+        </div>
+      )}
     </div>
   );
 }

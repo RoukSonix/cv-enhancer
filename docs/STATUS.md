@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-12 (Sprint 6)
+**Last updated:** 2026-03-13 (Sprint 7)
 
 ## Current State
 
@@ -49,6 +49,13 @@
 | Error boundary | Working | Class component wrapping layout children (Sprint 6) |
 | Loading skeleton | Working | Pulsing skeleton for `/roast/[id]` page (Sprint 6) |
 | Mobile responsiveness | Working | Responsive padding, text sizing, button stacking (Sprint 6) |
+| OG images for social sharing | Working | Dynamic OG image generation via @vercel/og (Sprint 7) |
+| Share buttons (Twitter/X) | Working | Twitter intent URL with pre-filled score text (Sprint 7) |
+| Share buttons (LinkedIn) | Working | LinkedIn share URL with OG unfurl (Sprint 7) |
+| Share buttons (Copy Link) | Working | Clipboard copy with toast confirmation (Sprint 7) |
+| OG image API (permalink) | Working | `GET /api/og/[id]` — DB lookup, PNG generation (Sprint 7) |
+| OG image API (encoded) | Working | `GET /api/og?r=<encoded>` — lz-string decode, PNG generation (Sprint 7) |
+| metadataBase | Working | Root layout metadataBase for absolute OG URLs (Sprint 7) |
 
 ### Not Implemented (Stubs / Missing)
 
@@ -57,9 +64,25 @@
 | Auth | Not started | Low |
 | Deploy (Vercel) | Not started | Medium |
 | Domain + DNS | Not started | Medium |
-| OG images for social sharing | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 7)
+
+- `@vercel/og` dependency for OG image generation (Satori + Resvg WASM, works in Docker)
+- Inter font files bundled in `public/fonts/` (Inter-Bold.ttf, Inter-Regular.ttf)
+- `metadataBase` added to root layout using `NEXT_PUBLIC_BASE_URL` env var
+- `NEXT_PUBLIC_BASE_URL` added to `.env.example`
+- `src/lib/og-utils.ts`: `scoreColor()`, `scoreColorSecondary()`, `truncateSummary()`, `buildTwitterShareUrl()`, `buildLinkedInShareUrl()`
+- `GET /api/og/[id]/route.tsx`: OG image for DB-backed roasts (1200x630 PNG, score circle, label badge, summary)
+- `GET /api/og/route.tsx`: OG image for lz-string encoded share URLs
+- Fallback OG image for invalid/missing roasts (branded, returns 200)
+- Cache-Control headers: `max-age=86400, s-maxage=604800, stale-while-revalidate=86400`
+- `og:image` + `twitter:card: summary_large_image` in `generateMetadata` for `/roast/[id]` and `/roast?r=`
+- `src/components/ShareButtons.tsx`: Share on X, Share on LinkedIn, Copy Link buttons
+- ShareButtons integrated into `SharedRoastView`, `RoastResults`, `RoastResultsFull`
+- Unit tests for og-utils (score colors, truncation, share URLs — 14 tests)
+- E2E tests for OG image routes, meta tags, and share buttons (9 tests)
 
 ### Implemented (Sprint 6)
 
@@ -175,6 +198,7 @@
 - **UI Components:** shadcn/ui (Radix UI)
 - **Icons:** Lucide React
 - **AI:** OpenRouter API (MiniMax M2.5) via OpenAI SDK
+- **OG Images:** @vercel/og (Satori + Resvg WASM)
 - **PDF Parsing:** pdf-parse
 - **Payments:** Stripe (Checkout Sessions + Webhooks)
 - **Database:** PostgreSQL 17 (Alpine) via Prisma 7
@@ -198,6 +222,9 @@ src/
 │   │   │   └── [id]/
 │   │   │       ├── route.ts     # GET: fetch saved roast by ID (Sprint 2)
 │   │   │       └── upgrade/route.ts # POST: retry AI for stuck paid roasts (Sprint 4)
+│   │   ├── og/
+│   │   │   ├── route.tsx        # GET: OG image for encoded share URLs (Sprint 7)
+│   │   │   └── [id]/route.tsx   # GET: OG image for DB roasts (Sprint 7)
 │   │   └── webhooks/stripe/
 │   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4)
 │   ├── checkout/
@@ -210,7 +237,7 @@ src/
 │   │   └── [id]/
 │   │       ├── page.tsx         # Permalink results from DB (Sprint 2)
 │   │       └── loading.tsx      # Skeleton loading UI (Sprint 6)
-│   ├── layout.tsx               # Root layout (dark theme, Geist fonts, ErrorBoundary — Sprint 6)
+│   ├── layout.tsx               # Root layout (dark theme, Geist fonts, ErrorBoundary, metadataBase — Sprint 7)
 │   ├── page.tsx                 # Main page (landing + results)
 │   └── globals.css              # Global styles, fire theme
 ├── components/
@@ -223,6 +250,7 @@ src/
 │   ├── RoastResults.tsx         # Free tier results + payment buttons (Sprint 4)
 │   ├── RoastResultsFull.tsx     # Paid tier results display (Sprint 3)
 │   ├── TierBadge.tsx            # Free/Full Roast tier badge (Sprint 3)
+│   ├── ShareButtons.tsx         # Twitter/X, LinkedIn, Copy Link share buttons (Sprint 7)
 │   └── SharedRoastView.tsx      # Client wrapper for shared results (Sprint 1)
 ├── generated/prisma/            # Prisma generated client (Sprint 2)
 └── lib/
@@ -235,7 +263,8 @@ src/
     │   ├── credits.test.ts      # Unit tests for credit redemption (Sprint 4)
     │   ├── webhook.test.ts      # Unit tests for webhook logic (Sprint 4)
     │   ├── email.test.ts        # Unit tests for email validation (Sprint 5)
-    │   └── file-validation.test.ts # Unit tests for file validation (Sprint 6)
+    │   ├── file-validation.test.ts # Unit tests for file validation (Sprint 6)
+    │   └── og.test.ts           # Unit tests for OG image helpers (Sprint 7)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
@@ -244,6 +273,7 @@ src/
     ├── share.ts                 # Share URL encode/decode + buildShareUrlById
     ├── email.ts                 # Email validation utility (Sprint 5)
     ├── file-validation.ts       # File validation + size formatting (Sprint 6)
+    ├── og-utils.ts              # OG image helpers: score colors, truncation, share URLs (Sprint 7)
     ├── stripe.ts                # Stripe client singleton (Sprint 4)
     ├── types.ts                 # TypeScript interfaces
     └── utils.ts                 # Utility functions

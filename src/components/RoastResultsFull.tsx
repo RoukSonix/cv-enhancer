@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AnimatedScore } from "@/components/AnimatedScore";
 import { TierBadge } from "@/components/TierBadge";
+import { ShareButtons } from "@/components/ShareButtons";
 import {
   AlertTriangle,
   Lightbulb,
@@ -221,6 +222,18 @@ export function RoastResultsFull({ result, onReset }: RoastResultsFullProps) {
           Roast Another Resume
         </Button>
       </div>
+
+      {/* Share buttons */}
+      {result.id && (
+        <div className="pt-2">
+          <p className="text-center text-sm text-muted-foreground mb-3">Share your results</p>
+          <ShareButtons
+            score={result.overallScore}
+            label={scoreLabel(result.overallScore)}
+            url={typeof window !== "undefined" ? `${window.location.origin}/roast/${result.id}` : ""}
+          />
+        </div>
+      )}
     </div>
   );
 }

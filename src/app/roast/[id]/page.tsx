@@ -31,6 +31,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const label = scoreLabel(score);
   const description = result.summary.slice(0, 160);
 
+  const ogImageUrl = `/api/og/${id}`;
+
   return {
     title: `Resume Score: ${score}/100 — ${label} | Resume Roaster`,
     description,
@@ -39,11 +41,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       type: "article",
       siteName: "Resume Roaster",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Resume score: ${score}/100 — ${label}`,
+        },
+      ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: `Resume Score: ${score}/100 — ${label}`,
       description,
+      images: [ogImageUrl],
     },
   };
 }

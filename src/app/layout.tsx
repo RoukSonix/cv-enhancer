@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://resumeroaster.com"),
   title: "Resume Roaster -- AI Resume Critique That Actually Hurts",
   description:
     "Upload your resume and get a brutally honest AI critique. Discover what recruiters really think. Score, ATS check, rewritten bullets.",
