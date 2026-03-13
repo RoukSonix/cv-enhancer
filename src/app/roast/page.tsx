@@ -29,6 +29,8 @@ export async function generateMetadata({
   const description = result.summary.slice(0, 160);
   const title = `Resume Score: ${score}/100 — ${label} | Resume Roaster`;
 
+  const ogImageUrl = `/api/og?r=${r}`;
+
   return {
     title,
     description,
@@ -37,11 +39,20 @@ export async function generateMetadata({
       description,
       type: "article",
       siteName: "Resume Roaster",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Resume score: ${score}/100 — ${label}`,
+        },
+      ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: `Resume Score: ${score}/100 — ${label}`,
       description,
+      images: [ogImageUrl],
     },
   };
 }

@@ -5,6 +5,7 @@ import { Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoastResults } from "@/components/RoastResults";
 import { RoastResultsFull } from "@/components/RoastResultsFull";
+import { scoreLabel } from "@/lib/score";
 import type { RoastResult } from "@/lib/types";
 
 interface SharedRoastViewProps {
