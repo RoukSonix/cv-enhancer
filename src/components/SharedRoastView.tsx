@@ -5,7 +5,6 @@ import { Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoastResults } from "@/components/RoastResults";
 import { RoastResultsFull } from "@/components/RoastResultsFull";
-import { ShareButtons } from "@/components/ShareButtons";
 import { scoreLabel } from "@/lib/score";
 import type { RoastResult } from "@/lib/types";
 
@@ -52,16 +51,6 @@ export function SharedRoastView({ result }: SharedRoastViewProps) {
         ) : (
           <RoastResults result={result} onReset={() => router.push("/")} />
         )}
-
-        {/* Share buttons */}
-        <div className="mt-8 mb-4">
-          <p className="text-center text-sm text-muted-foreground mb-3">Share your results</p>
-          <ShareButtons
-            score={result.overallScore}
-            label={scoreLabel(result.overallScore)}
-            url={typeof window !== "undefined" ? window.location.href : ""}
-          />
-        </div>
 
         {/* Footer */}
         <footer className="text-center mt-20 pb-8 text-xs text-muted-foreground/50">
