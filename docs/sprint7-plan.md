@@ -20,12 +20,14 @@
 
 | File | Changes |
 |------|---------|
+| `src/app/layout.tsx` | **Add `metadataBase`** to root metadata (required for social crawlers to resolve relative OG image URLs to absolute) |
 | `src/app/roast/[id]/page.tsx` | Add `og:image` and `twitter:card: summary_large_image` to `generateMetadata` |
 | `src/app/roast/page.tsx` | Add `og:image` and `twitter:card: summary_large_image` to `generateMetadata` |
 | `src/components/SharedRoastView.tsx` | Add `<ShareButtons>` component below results |
 | `src/components/RoastResults.tsx` | Add `<ShareButtons>` component below "Roast Another" button |
 | `src/components/RoastResultsFull.tsx` | Add `<ShareButtons>` component below "Roast Another" button |
 | `package.json` | Add `@vercel/og` dependency (works outside Vercel via Satori internally) |
+| `.env.example` | Add `NEXT_PUBLIC_BASE_URL` env var |
 
 ---
 
@@ -153,6 +155,29 @@ Use `export const runtime = 'nodejs'` (not edge) since the app deploys to Hetzne
 
 ## 5. Meta Tags Structure
 
+### PREREQUISITE: Add `metadataBase` to root layout
+
+**Critical:** Without `metadataBase`, Next.js cannot resolve relative OG image URLs
+to absolute URLs. Social crawlers (Twitter, Facebook, LinkedIn) require absolute URLs
+for `og:image`. The root layout currently has NO `metadataBase` set.
+
+Add to `src/app/layout.tsx`:
+
+```typescript
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://resumeroaster.com"),
+  // ... existing metadata
+};
+```
+
+Add to `.env.example` and `.env.local`:
+```
+NEXT_PUBLIC_BASE_URL=https://resumeroaster.com
+```
+
+This allows relative URLs like `/api/og/abc123` in `generateMetadata` to automatically
+resolve to `https://resumeroaster.com/api/og/abc123` in the rendered meta tags.
+
 ### `/roast/[id]/page.tsx` — Updated `generateMetadata`
 
 ```typescript
@@ -169,7 +194,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const label = scoreLabel(score);
   const description = result.summary.slice(0, 160);
 
-  // Build absolute OG image URL
+  // Relative URL — resolved to absolute by metadataBase in root layout
   const ogImageUrl = `/api/og/${id}`;
 
   return {
@@ -292,7 +317,7 @@ Download and place in `public/fonts/`:
 - `Inter-Bold.ttf` (~300KB)
 - `Inter-Regular.ttf` (~300KB)
 
-Load at build time in the OG route handler via `fs.readFile`. This avoids runtime fetches to Google Fonts which add latency and can fail.
+Load in the OG route handler via `fs.readFile` with `path.join(process.cwd(), 'public/fonts/Inter-Bold.ttf')`. This avoids runtime fetches to Google Fonts which add latency and can fail. In Docker, `process.cwd()` resolves to `/app`, and fonts are available because `COPY . .` copies the entire project.
 
 ---
 
@@ -340,16 +365,17 @@ Load at build time in the OG route handler via `fs.readFile`. This avoids runtim
 
 ## 9. Implementation Order
 
-1. Install `@vercel/og`, add font files
-2. Create `GET /api/og/[id]/route.tsx` with JSX template + caching
-3. Create `GET /api/og/route.tsx` for encoded URLs
-4. Update `generateMetadata` in `/roast/[id]/page.tsx` (og:image + twitter card)
-5. Update `generateMetadata` in `/roast/page.tsx` (og:image + twitter card)
-6. Create `ShareButtons.tsx` component
-7. Integrate ShareButtons into `SharedRoastView`, `RoastResults`, `RoastResultsFull`
-8. Write unit tests
-9. Write E2E tests
-10. Manual testing with social platform debuggers
+1. **Add `metadataBase`** to `src/app/layout.tsx` + `NEXT_PUBLIC_BASE_URL` to `.env.example`
+2. Install `@vercel/og`, add font files to `public/fonts/`
+3. Create `GET /api/og/[id]/route.tsx` with JSX template + caching
+4. Create `GET /api/og/route.tsx` for encoded URLs
+5. Update `generateMetadata` in `/roast/[id]/page.tsx` (og:image + twitter card)
+6. Update `generateMetadata` in `/roast/page.tsx` (og:image + twitter card)
+7. Create `ShareButtons.tsx` component
+8. Integrate ShareButtons into `SharedRoastView`, `RoastResults`, `RoastResultsFull`
+9. Write unit tests
+10. Write E2E tests
+11. Manual testing with social platform debuggers
 
 ---
 
@@ -372,3 +398,38 @@ Load at build time in the OG route handler via `fs.readFile`. This avoids runtim
 - Custom share images for different tiers (free vs paid)
 - Share to WhatsApp, Telegram, etc. (can add later)
 - Analytics tracking on share button clicks (Sprint 9)
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-13
+**Validator:** Claude Opus 4.6 (validation agent)
+
+### Checklist
+
+| # | Check | Result | Notes |
+|---|-------|--------|-------|
+| 1 | `@vercel/og` works outside Vercel (Docker/standalone) | PASS | Uses WASM-based Resvg — no native deps. `node:22-alpine` is fine. `runtime = 'nodejs'` is correct for Hetzner/Docker deployment. |
+| 2 | OG image API route design correct for App Router | PASS | `src/app/api/og/[id]/route.tsx` and `src/app/api/og/route.tsx` follow correct App Router conventions. `ImageResponse` usage is standard. |
+| 3 | Font loading works in Docker | PASS | Bundling fonts in `public/fonts/` and loading via `fs.readFile(path.join(process.cwd(), ...))` works because `COPY . .` in Dockerfile copies fonts. No external fetch dependency. |
+| 4 | Meta tags structured correctly for `generateMetadata` | **FIXED** | **Original plan had no `metadataBase`** — relative OG image URLs (`/api/og/...`) would NOT resolve to absolute URLs for social crawlers. Fixed: added `metadataBase` step to root layout using `NEXT_PUBLIC_BASE_URL` env var. |
+| 5 | Share buttons work correctly | PASS | Twitter intent URL format (`twitter.com/intent/tweet?text=...&url=...`) and LinkedIn share URL (`linkedin.com/sharing/share-offsite/?url=...`) are both correct and standard. |
+| 6 | Cache headers appropriate | PASS | `max-age=86400, s-maxage=604800, stale-while-revalidate=86400` is appropriate for immutable roast results. Fallback image returning 200 is correct (social crawlers don't handle non-200). |
+| 7 | Existing E2E tests break | PASS (no breakage) | Changes are purely additive: new API routes, new meta tags, new component. No existing elements are removed or relocated. |
+| 8 | `/api/og?r=` lz-string decoding correct | PASS | Reuses existing `decodeRoastResult()` from `src/lib/share.ts` which handles decompression, JSON parsing, and validation with proper null returns on failure. |
+
+### Issues Found & Fixed
+
+1. **CRITICAL — Missing `metadataBase` (fixed in plan)**
+   - **Problem:** Root layout (`src/app/layout.tsx`) had no `metadataBase`. Social crawlers require absolute `og:image` URLs. Without `metadataBase`, Next.js cannot resolve the relative `/api/og/...` paths to `https://resumeroaster.com/api/og/...`.
+   - **Fix:** Added step 1 to implementation order: set `metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://resumeroaster.com")` in root layout metadata. Added `NEXT_PUBLIC_BASE_URL` to `.env.example`.
+
+2. **Minor — Font path resolution clarified (improved in plan)**
+   - **Problem:** Plan said "load via `fs.readFile`" without specifying path construction.
+   - **Fix:** Clarified to use `path.join(process.cwd(), 'public/fonts/Inter-Bold.ttf')` and noted why this works in Docker (`COPY . .` copies fonts, `process.cwd()` = `/app`).
+
+### Advisory Notes (no action required)
+
+- **`next/og` alternative:** Next.js 16 bundles `next/og` which re-exports `@vercel/og`. Could skip the `@vercel/og` dependency and use `import { ImageResponse } from 'next/og'` directly. Either approach works; using `@vercel/og` explicitly is fine for clarity.
+- **Dockerfile runs dev mode:** The Dockerfile uses `npm run dev`, not a production build. `@vercel/og` works in both modes, but production (`npm run build && npm start`) would yield better OG image generation performance. This is a pre-existing concern, not Sprint 7 specific.
