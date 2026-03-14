@@ -67,7 +67,9 @@ STRIPE_PRICE_TEMPLATES=price_xxx  # Stripe Price ID for template pack ($29)
 
 ### Task 3: Template DOCX Stubs
 
-**Directory:** `public/templates/`
+**Directory:** `data/templates/` (NOT `public/` — see security note)
+
+**SECURITY FIX:** Files in `public/` are served statically by Next.js, meaning anyone could download templates at `/templates/modern-minimal.docx` without paying. Store templates in `data/templates/` instead — the download API reads from the filesystem, so this works identically while preventing unauthenticated access.
 
 Create 5 minimal but real DOCX files using a build script (`scripts/generate-templates.ts`). Each template should be a valid DOCX with:
 - Template name as heading
@@ -75,11 +77,11 @@ Create 5 minimal but real DOCX files using a build script (`scripts/generate-tem
 - Brief formatting notes specific to the template style
 
 Files:
-- `public/templates/modern-minimal.docx`
-- `public/templates/corporate.docx`
-- `public/templates/creative-bold.docx`
-- `public/templates/tech-developer.docx`
-- `public/templates/ats-optimized.docx`
+- `data/templates/modern-minimal.docx`
+- `data/templates/corporate.docx`
+- `data/templates/creative-bold.docx`
+- `data/templates/tech-developer.docx`
+- `data/templates/ats-optimized.docx`
 
 Use `docx` npm package (add as devDependency) in a generation script similar to how `scripts/generate-test-pdfs.ts` works. Run once to generate, commit the output files.
 
@@ -120,10 +122,12 @@ Logic:
 
 **File:** `src/app/api/webhooks/stripe/route.ts`
 
-Extend the existing webhook handler to detect template purchases via metadata:
+Extend the existing webhook handler to detect template purchases via metadata.
+
+**IMPORTANT:** The template branch must go **BEFORE** the existing `if (!roastId || !priceType)` guard (line 33 in current code), not after it. Template purchases won't have `roastId` or `priceType` in metadata, so the early return would silently drop them.
 
 ```ts
-// After the existing roastId check:
+// BEFORE the existing roastId/priceType guard — insert right after line 31:
 if (session.metadata?.purchaseType === "templates") {
   // Idempotency: check if TemplatePurchase already exists for this session
   const existing = await prisma.templatePurchase.findUnique({
@@ -272,7 +276,7 @@ Target: 4-6 tests, following existing Playwright patterns.
 | `.env.example` | Edit | Add `STRIPE_PRICE_TEMPLATES` |
 | `package.json` | Edit | Add `docx` (dev), `jszip` (prod) dependencies |
 | `scripts/generate-templates.ts` | New | Script to generate 5 DOCX template stubs |
-| `public/templates/*.docx` | New | 5 generated template files |
+| `data/templates/*.docx` | New | 5 generated template files |
 | `src/app/api/checkout/templates/route.ts` | New | Template checkout session creation |
 | `src/app/api/templates/download/route.ts` | New | Template ZIP download endpoint |
 | `src/app/api/webhooks/stripe/route.ts` | Edit | Add template purchase branch |
@@ -310,7 +314,7 @@ Target: 4-6 tests, following existing Playwright patterns.
 
 3. **ZIP download** instead of individual file links. Reason: simpler UX (one click), and all 5 templates are lightweight DOCX files.
 
-4. **No S3/Vercel Blob** for MVP. Templates are static files in `public/templates/`. The download API reads them from disk and ZIPs on-the-fly. This avoids external service dependencies. Can migrate to S3 later if files get large.
+4. **No S3/Vercel Blob** for MVP. Templates are static files in `data/templates/`. The download API reads them from disk and ZIPs on-the-fly. This avoids external service dependencies. Can migrate to S3 later if files get large.
 
 5. **Session-based download auth** via `stripeSessionId` in DB lookup. No signed URLs or time-limited tokens for MVP — the session_id in the URL is the access key. This is secure enough since session IDs are long random strings from Stripe.
 
@@ -343,3 +347,28 @@ Target: 4-6 tests, following existing Playwright patterns.
 | DOCX generation produces invalid files | Medium | Test opening in Word/Google Docs before shipping |
 | Large ZIP response in serverless | Low | 5 DOCX files ~50KB total, well within limits |
 | Stripe env var missing in dev | Low | `requireEnv()` fails fast with clear error |
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-14
+**Validator:** Claude (Opus 4.6)
+
+### Checklist
+
+| # | Question | Verdict | Notes |
+|---|----------|---------|-------|
+| 1 | Separate `/api/checkout/templates` route? | **APPROVED** | Existing checkout is tightly coupled to roastId, priceType, bundleToken. Separate route avoids coupling. |
+| 2 | Webhook metadata branching safe? | **FIXED** | Original plan placed template branch after the `!roastId \|\| !priceType` early return (line 33), which would silently drop template events. Fixed: template branch must go BEFORE that guard. |
+| 3 | DOCX from `public/` secure? | **FIXED** | `public/` is statically served by Next.js — anyone could download at `/templates/*.docx` without paying. Fixed: moved to `data/templates/` (not publicly served). Download API reads from filesystem. |
+| 4 | ZIP download approach appropriate? | **APPROVED** | 5 DOCX files ~50KB total. `jszip` is lightweight. One-click UX is simpler than individual links. |
+| 5 | TemplatePurchase integrates with auth? | **APPROVED** | Optional `userId` (nullable FK) matches Roast model pattern. `cuid()` consistent with User/Account/Credit models. Relation addition to User model is standard. |
+| 6 | Cross-sell button changes backward compatible? | **APPROVED** | Only onClick handler changes (toast → router.push). Button text, styling, layout unchanged. `useRouter` already imported in RoastResults; plan correctly notes it needs adding to RoastResultsFull. |
+| 7 | Existing E2E tests break? | **APPROVED** | `paid-tier.spec.ts:187` checks button visibility (`/Template Pack.*\$29/`) — still passes. No test asserts on the "Coming soon!" toast text. `roast-flow.spec.ts:53` comment references "Coming soon" but doesn't assert on it. |
+| 8 | Stripe price env var consistent? | **APPROVED** | `STRIPE_PRICE_TEMPLATES` uses same `requireEnv()` pattern as `STRIPE_PRICE_SINGLE` and `STRIPE_PRICE_BUNDLE`. |
+
+### Issues Fixed in This Review
+
+1. **Webhook ordering (Critical):** Moved template metadata check instruction to BEFORE the `!roastId || !priceType` guard in Task 5.
+2. **Template file security:** Changed storage from `public/templates/` to `data/templates/` in Tasks 3 and 6, file summary, and architectural decisions.
