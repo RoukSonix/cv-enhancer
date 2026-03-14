@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-function isAuthorized(req: NextRequest): boolean {
-  const token = process.env.ADMIN_TOKEN;
-  if (!token) return false;
-
-  const authHeader = req.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    return authHeader.slice(7) === token;
-  }
-
-  const queryToken = req.nextUrl.searchParams.get("token");
-  return queryToken === token;
-}
+import { isAdminAuthorized } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!(await isAdminAuthorized(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
