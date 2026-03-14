@@ -36,7 +36,7 @@ test.describe("Share Results (/roast)", () => {
   test("invalid share URL shows error page", async ({ page }) => {
     await page.goto("/roast?r=invalid-data");
     await expect(page.getByText(/invalid|expired/i)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole("link", { name: /roast/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /roast/i }).first()).toBeVisible();
   });
 
   test("missing r param shows error page", async ({ page }) => {
