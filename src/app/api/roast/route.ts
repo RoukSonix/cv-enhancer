@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { runRoastAI } from "@/lib/roast-ai";
 import { isValidEmail } from "@/lib/email";
 import { extractTextFromPdf, PdfExtractionError } from "@/lib/pdf-fallback";
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     const file = formData.get("resume") as File | null;
     const textInput = formData.get("resumeText") as string | null;
     const tier = (formData.get("tier") as "free" | "paid") || "free";
-    const email = (formData.get("email") as string | null)?.trim() || null;
+    const email = (formData.get("email") as string | null)?.trim().toLowerCase() || null;
     const marketingOptIn = formData.get("marketingOptIn") === "true";
 
     // Server-side email validation
@@ -82,6 +83,9 @@ export async function POST(req: NextRequest) {
     // Persist to database (best-effort — don't fail the request if DB is down)
     try {
       const resumeHash = createHash("sha256").update(resumeText).digest("hex");
+      // Sprint 10: attach userId if user is signed in
+      const session = await auth();
+      const userId = session?.user?.id ?? null;
       await prisma.roast.create({
         data: {
           id: result.id,
@@ -92,6 +96,7 @@ export async function POST(req: NextRequest) {
           overallScore: result.overallScore,
           email,
           marketingOptIn,
+          userId,
         },
       });
     } catch (dbError) {

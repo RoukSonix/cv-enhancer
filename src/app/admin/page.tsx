@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { Suspense } from "react";
 
 interface AdminStats {
   totalRoasts: number;
@@ -30,25 +30,38 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function AdminDashboard() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
+export default function AdminPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin;
+
   useEffect(() => {
-    if (!token) {
-      setError("Missing token");
+    if (status === "loading") return;
+
+    if (!session || !isAdmin) {
+      router.replace("/");
       return;
     }
-    fetch(`/api/admin/stats?token=${encodeURIComponent(token)}`)
+
+    fetch("/api/admin/stats")
       .then((res) => {
         if (!res.ok) throw new Error("Unauthorized");
         return res.json();
       })
       .then(setStats)
-      .catch(() => setError("Failed to load stats. Check your token."));
-  }, [token]);
+      .catch(() => setError("Failed to load stats."));
+  }, [session, status, isAdmin, router]);
+
+  if (status === "loading" || (!stats && !error)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -58,13 +71,7 @@ function AdminDashboard() {
     );
   }
 
-  if (!stats) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
+  if (!stats) return null;
 
   return (
     <main className="min-h-screen bg-background">
@@ -86,13 +93,5 @@ function AdminDashboard() {
         </div>
       </div>
     </main>
-  );
-}
-
-export default function AdminPage() {
-  return (
-    <Suspense>
-      <AdminDashboard />
-    </Suspense>
   );
 }

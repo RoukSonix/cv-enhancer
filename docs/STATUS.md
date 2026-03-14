@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-14 (Sprint 9)
+**Last updated:** 2026-03-14 (Sprint 10)
 
 ## Current State
 
@@ -67,15 +67,42 @@
 | OG image API (encoded) | Working | `GET /api/og?r=<encoded>` — lz-string decode, PNG generation (Sprint 7) |
 | metadataBase | Working | Root layout metadataBase for absolute OG URLs (Sprint 7) |
 
+| Auth (Google + Magic Link) | Working | Auth.js v5 with Google OAuth + Resend magic link, JWT sessions, isAdmin role (Sprint 10) |
+| Sign-in page | Working | Custom branded `/auth/signin` with Google + email options (Sprint 10) |
+| User dashboard | Working | `/dashboard` showing roast history for signed-in users (Sprint 10) |
+| Header with auth | Working | Sticky header with logo, sign in/out, user dropdown (Sprint 10) |
+| Retroactive roast linking | Working | Existing roasts linked to user by email on first sign-in (Sprint 10) |
+| Session-based admin auth | Working | Admin page uses isAdmin from JWT session (Sprint 10) |
+| Dual admin API auth | Working | Admin APIs accept session isAdmin OR ADMIN_TOKEN (Sprint 10) |
+| Email normalization | Working | Emails lowercased on storage and linking (Sprint 10) |
+
 ### Not Implemented (Stubs / Missing)
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| Auth | Not started | Low |
 | Deploy (Vercel) | Not started | Medium |
 | Domain + DNS | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 10)
+
+- Auth.js v5 (`next-auth@beta`) with JWT session strategy and `@auth/prisma-adapter`
+- Prisma schema: `User`, `Account`, `VerificationToken` models; nullable `userId` FK on `Roast` with index
+- `src/lib/auth.ts`: Auth.js config with Google + Resend providers, JWT/session callbacks, retroactive roast linking via signIn callback
+- `src/lib/auth-types.ts`: TypeScript module augmentation for `Session.user.isAdmin` and `JWT.userId`/`JWT.isAdmin`
+- `src/app/api/auth/[...nextauth]/route.ts`: Auth.js route handler
+- `src/components/Header.tsx`: Sticky header with logo, sign in/out button, user avatar dropdown (My Roasts, Admin if isAdmin, Sign Out)
+- `src/app/layout.tsx`: Wrapped with `<SessionProvider>` and `<Header />`
+- `src/app/auth/signin/page.tsx`: Custom sign-in page with Google button, email magic link form, "Continue without signing in" link
+- `src/app/dashboard/page.tsx`: Server component showing user's roast history (score, date, tier badge, summary preview)
+- `src/app/api/roast/route.ts`: Attaches `userId` from session if signed in; normalizes email to lowercase
+- `src/app/admin/page.tsx`: Uses `useSession()` + `isAdmin` check instead of `?token=` query param
+- `src/app/api/admin/stats/route.ts` + `emails/route.ts`: Dual auth via `isAdminAuthorized()` (session isAdmin OR ADMIN_TOKEN)
+- `isAdminAuthorized()` helper in `src/lib/auth.ts`: shared admin auth check for API routes
+- `.env.example`: Added AUTH_URL, AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY, ADMIN_TOKEN
+- Unit tests: JWT callback, session callback, signIn callback linking, admin auth helper (8 tests in `auth.test.ts`)
+- Bootstrap admin note: After first sign-in, manually set `isAdmin = true` via SQL: `UPDATE "User" SET "isAdmin" = true WHERE email = 'admin@example.com';`
 
 ### Implemented (Sprint 9)
 
@@ -242,6 +269,7 @@
 - **OG Images:** @vercel/og (Satori + Resvg WASM)
 - **PDF Parsing:** pdf-parse + pdfjs-dist (dual-parser fallback)
 - **Payments:** Stripe (Checkout Sessions + Webhooks)
+- **Auth:** Auth.js v5 (next-auth@beta) with Google OAuth + Resend magic link
 - **Database:** PostgreSQL 17 (Alpine) via Prisma 7
 - **Runtime:** Node.js 22 (Alpine Docker)
 - **Container:** Docker Compose
@@ -253,8 +281,10 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── admin/
-│   │   │   ├── emails/route.ts  # GET: email export endpoint (ADMIN_TOKEN auth — Sprint 9)
-│   │   │   └── stats/route.ts   # GET: admin dashboard stats (ADMIN_TOKEN auth — Sprint 9)
+│   │   │   ├── emails/route.ts  # GET: email export endpoint (dual auth — Sprint 10)
+│   │   │   └── stats/route.ts   # GET: admin dashboard stats (dual auth — Sprint 10)
+│   │   ├── auth/
+│   │   │   └── [...nextauth]/route.ts # Auth.js route handler (Sprint 10)
 │   │   ├── checkout/
 │   │   │   ├── route.ts         # POST: create Stripe Checkout session (Sprint 4)
 │   │   │   ├── credits/route.ts # GET: check remaining bundle credits (Sprint 4)
@@ -275,7 +305,11 @@ src/
 │   │   └── webhooks/stripe/
 │   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4)
 │   ├── admin/
-│   │   └── page.tsx             # Admin dashboard with stat cards (Sprint 9)
+│   │   └── page.tsx             # Admin dashboard with session-based isAdmin check (Sprint 10)
+│   ├── auth/
+│   │   └── signin/page.tsx      # Custom sign-in page (Google + magic link — Sprint 10)
+│   ├── dashboard/
+│   │   └── page.tsx             # User roast history page (Sprint 10)
 │   ├── checkout/
 │   │   ├── success/
 │   │   │   ├── page.tsx         # Payment success + cookie set (Sprint 4)
@@ -286,7 +320,7 @@ src/
 │   │   └── [id]/
 │   │       ├── page.tsx         # Permalink results from DB (Sprint 2)
 │   │       └── loading.tsx      # Skeleton loading UI (Sprint 6)
-│   ├── layout.tsx               # Root layout (dark theme, Geist fonts, ErrorBoundary, metadataBase — Sprint 7)
+│   ├── layout.tsx               # Root layout (SessionProvider, Header, ErrorBoundary — Sprint 10)
 │   ├── page.tsx                 # Main page (landing + results)
 │   └── globals.css              # Global styles, fire theme
 ├── components/
@@ -295,6 +329,7 @@ src/
 │   ├── FireParticles.tsx        # Background fire particles
 │   ├── LoadingRoast.tsx         # Loading state with jokes
 │   ├── ErrorBoundary.tsx        # React error boundary with fire-themed fallback (Sprint 6)
+│   ├── Header.tsx               # Sticky header with auth controls (Sprint 10)
 │   ├── ExtractedTextPreview.tsx  # Collapsible PDF text preview with quality warning (Sprint 8)
 │   ├── ResumeUpload.tsx         # Upload/paste form (toasts, validation, timeout, preview — Sprint 8)
 │   ├── RoastResults.tsx         # Free tier results + payment buttons (Sprint 4)
@@ -319,7 +354,10 @@ src/
     │   ├── og.test.ts           # Unit tests for OG image helpers (Sprint 7)
     │   ├── pdf-extraction.test.ts # Unit tests for PDF extraction + fallback (Sprint 8)
     │   ├── stats.test.ts          # Unit tests for stats cache (Sprint 9)
-    │   └── rating.test.ts         # Unit tests for rating validation + auth (Sprint 9)
+    │   ├── rating.test.ts         # Unit tests for rating validation + auth (Sprint 9)
+    │   └── auth.test.ts           # Unit tests for auth callbacks + admin helper (Sprint 10)
+    ├── auth.ts                  # Auth.js v5 config + isAdminAuthorized helper (Sprint 10)
+    ├── auth-types.ts            # Auth type augmentation for Session + JWT (Sprint 10)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
@@ -335,5 +373,5 @@ src/
     ├── types.ts                 # TypeScript interfaces
     └── utils.ts                 # Utility functions
 prisma/
-└── schema.prisma                # Prisma schema with Roast + Credit models
+└── schema.prisma                # Prisma schema with User, Account, VerificationToken, Roast, Credit models
 ```
