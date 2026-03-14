@@ -15,6 +15,7 @@ describe("Stripe client module", () => {
   it("throws if STRIPE_SECRET_KEY is missing", async () => {
     process.env.STRIPE_PRICE_SINGLE = "price_single";
     process.env.STRIPE_PRICE_BUNDLE = "price_bundle";
+    process.env.STRIPE_PRICE_TEMPLATES = "price_templates";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     delete process.env.STRIPE_SECRET_KEY;
 
@@ -23,9 +24,22 @@ describe("Stripe client module", () => {
     );
   });
 
+  it("throws if STRIPE_PRICE_TEMPLATES is missing", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_123";
+    process.env.STRIPE_PRICE_SINGLE = "price_single";
+    process.env.STRIPE_PRICE_BUNDLE = "price_bundle";
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
+    delete process.env.STRIPE_PRICE_TEMPLATES;
+
+    await expect(import("@/lib/stripe")).rejects.toThrow(
+      "Missing required environment variable: STRIPE_PRICE_TEMPLATES"
+    );
+  });
+
   it("throws if STRIPE_PRICE_SINGLE is missing", async () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.STRIPE_PRICE_BUNDLE = "price_bundle";
+    process.env.STRIPE_PRICE_TEMPLATES = "price_templates";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     delete process.env.STRIPE_PRICE_SINGLE;
 
@@ -37,6 +51,7 @@ describe("Stripe client module", () => {
   it("throws if STRIPE_PRICE_BUNDLE is missing", async () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.STRIPE_PRICE_SINGLE = "price_single";
+    process.env.STRIPE_PRICE_TEMPLATES = "price_templates";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     delete process.env.STRIPE_PRICE_BUNDLE;
 
@@ -49,6 +64,7 @@ describe("Stripe client module", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.STRIPE_PRICE_SINGLE = "price_single";
     process.env.STRIPE_PRICE_BUNDLE = "price_bundle";
+    process.env.STRIPE_PRICE_TEMPLATES = "price_templates";
     delete process.env.STRIPE_WEBHOOK_SECRET;
 
     await expect(import("@/lib/stripe")).rejects.toThrow(
@@ -60,17 +76,20 @@ describe("Stripe client module", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.STRIPE_PRICE_SINGLE = "price_single_999";
     process.env.STRIPE_PRICE_BUNDLE = "price_bundle_2499";
+    process.env.STRIPE_PRICE_TEMPLATES = "price_templates_2900";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
 
     const mod = await import("@/lib/stripe");
     expect(mod.STRIPE_PRICE_SINGLE).toBe("price_single_999");
     expect(mod.STRIPE_PRICE_BUNDLE).toBe("price_bundle_2499");
+    expect(mod.STRIPE_PRICE_TEMPLATES).toBe("price_templates_2900");
   });
 
   it("exports a stripe instance when all env vars are set", async () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.STRIPE_PRICE_SINGLE = "price_single";
     process.env.STRIPE_PRICE_BUNDLE = "price_bundle";
+    process.env.STRIPE_PRICE_TEMPLATES = "price_templates";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
 
     const mod = await import("@/lib/stripe");
