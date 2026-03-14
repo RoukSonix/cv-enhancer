@@ -26,6 +26,9 @@ model Roast {
   email           String?                    // user's email (required for free, optional for paid)
   marketingOptIn  Boolean   @default(false)  // true if user checked "Send me resume tips"
 
+  // Sprint 9: Rating
+  rating          Int?                       // 1 = thumbs up, -1 = thumbs down, null = no rating
+
   @@index([resumeHash])
   @@index([createdAt])
   @@index([email])

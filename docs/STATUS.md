@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-14 (Sprint 8)
+**Last updated:** 2026-03-14 (Sprint 9)
 
 ## Current State
 
@@ -40,7 +40,12 @@
 | Marketing opt-in checkbox | Working | GDPR-compliant, unchecked by default |
 | Email on results page | Working | Confirmation line below score card |
 | Email stripped on shared pages | Working | Server-side stripping in `/roast/[id]` |
-| Admin email export | Working | GET `/api/admin/emails` (JSON + CSV, no auth) |
+| Admin email export | Working | GET `/api/admin/emails` (JSON + CSV, ADMIN_TOKEN auth — Sprint 9) |
+| Public stats endpoint | Working | GET `/api/stats` — cached 60s, real roast count + ratings (Sprint 9) |
+| Rating system | Working | POST `/api/roast/[id]/rate` — thumbs up/down (Sprint 9) |
+| Admin stats dashboard | Working | GET `/api/admin/stats` + `/admin` page, ADMIN_TOKEN protected (Sprint 9) |
+| Social proof (real data) | Working | SocialProof component fetches live stats on landing page (Sprint 9) |
+| Rating widget | Working | RatingWidget component on both free and paid results (Sprint 9) |
 | Toast error notifications | Working | All errors shown via sonner toasts (Sprint 6) |
 | File validation (client) | Working | Rejects non-PDF and >5MB with toast (Sprint 6) |
 | File validation (server) | Working | 413 response for >5MB uploads (Sprint 6) |
@@ -71,6 +76,20 @@
 | Domain + DNS | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 9)
+
+- Prisma schema: `rating Int?` field on Roast model (1 = thumbs up, -1 = thumbs down, null = unrated)
+- `src/lib/stats-cache.ts`: In-memory cache with 60s TTL, `getPublicStats()` and `getAdminStats()` helpers
+- `GET /api/stats`: Public endpoint returning totalRoasts, avgRating (positiveCount/totalCount ratio), positiveRatingCount, totalRatings
+- `POST /api/roast/[id]/rate`: Rating submission endpoint (validates 1/-1, upserts, invalidates cache)
+- `GET /api/admin/stats`: Admin stats endpoint (ADMIN_TOKEN protected via Bearer header or query param)
+- `GET /api/admin/emails`: Retrofitted ADMIN_TOKEN auth (was previously unprotected PII)
+- `src/components/SocialProof.tsx`: Client component fetching `/api/stats`, shows real roast count + positive rating %, falls back to static text
+- `src/components/RatingWidget.tsx`: Thumbs up/down widget integrated into RoastResults and RoastResultsFull (between score card and top issues)
+- `src/app/admin/page.tsx`: Admin dashboard with stat cards (total/free/paid roasts, conversion, revenue, avg score/rating, today/week/month)
+- `src/app/page.tsx`: Replaced static social proof section with `<SocialProof />` component
+- Unit tests: stats cache (5 tests), rating validation + revenue calc + auth (7 tests)
 
 ### Implemented (Sprint 8)
 
@@ -234,7 +253,8 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── admin/
-│   │   │   └── emails/route.ts  # GET: email export endpoint (Sprint 5)
+│   │   │   ├── emails/route.ts  # GET: email export endpoint (ADMIN_TOKEN auth — Sprint 9)
+│   │   │   └── stats/route.ts   # GET: admin dashboard stats (ADMIN_TOKEN auth — Sprint 9)
 │   │   ├── checkout/
 │   │   │   ├── route.ts         # POST: create Stripe Checkout session (Sprint 4)
 │   │   │   ├── credits/route.ts # GET: check remaining bundle credits (Sprint 4)
@@ -245,12 +265,17 @@ src/
 │   │   │   │   └── route.ts     # POST: PDF text extraction preview (Sprint 8)
 │   │   │   └── [id]/
 │   │   │       ├── route.ts     # GET: fetch saved roast by ID (Sprint 2)
-│   │   │       └── upgrade/route.ts # POST: retry AI for stuck paid roasts (Sprint 4)
+│   │   │       ├── upgrade/route.ts # POST: retry AI for stuck paid roasts (Sprint 4)
+│   │   │       └── rate/route.ts  # POST: submit rating 1/-1 (Sprint 9)
+│   │   ├── stats/
+│   │   │   └── route.ts         # GET: public stats with 60s cache (Sprint 9)
 │   │   ├── og/
 │   │   │   ├── route.tsx        # GET: OG image for encoded share URLs (Sprint 7)
 │   │   │   └── [id]/route.tsx   # GET: OG image for DB roasts (Sprint 7)
 │   │   └── webhooks/stripe/
 │   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4)
+│   ├── admin/
+│   │   └── page.tsx             # Admin dashboard with stat cards (Sprint 9)
 │   ├── checkout/
 │   │   ├── success/
 │   │   │   ├── page.tsx         # Payment success + cookie set (Sprint 4)
@@ -276,6 +301,8 @@ src/
 │   ├── RoastResultsFull.tsx     # Paid tier results display (Sprint 3)
 │   ├── TierBadge.tsx            # Free/Full Roast tier badge (Sprint 3)
 │   ├── ShareButtons.tsx         # Twitter/X, LinkedIn, Copy Link share buttons (Sprint 7)
+│   ├── SocialProof.tsx          # Real stats on landing page (Sprint 9)
+│   ├── RatingWidget.tsx         # Thumbs up/down rating widget (Sprint 9)
 │   └── SharedRoastView.tsx      # Client wrapper for shared results (Sprint 1)
 ├── generated/prisma/            # Prisma generated client (Sprint 2)
 └── lib/
@@ -290,7 +317,9 @@ src/
     │   ├── email.test.ts        # Unit tests for email validation (Sprint 5)
     │   ├── file-validation.test.ts # Unit tests for file validation (Sprint 6)
     │   ├── og.test.ts           # Unit tests for OG image helpers (Sprint 7)
-    │   └── pdf-extraction.test.ts # Unit tests for PDF extraction + fallback (Sprint 8)
+    │   ├── pdf-extraction.test.ts # Unit tests for PDF extraction + fallback (Sprint 8)
+    │   ├── stats.test.ts          # Unit tests for stats cache (Sprint 9)
+    │   └── rating.test.ts         # Unit tests for rating validation + auth (Sprint 9)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
@@ -299,6 +328,7 @@ src/
     ├── share.ts                 # Share URL encode/decode + buildShareUrlById
     ├── email.ts                 # Email validation utility (Sprint 5)
     ├── file-validation.ts       # File validation + size formatting (Sprint 6)
+    ├── stats-cache.ts            # In-memory stats cache with 60s TTL (Sprint 9)
     ├── pdf-fallback.ts          # Dual-parser PDF extraction with error classification (Sprint 8)
     ├── og-utils.ts              # OG image helpers: score colors, truncation, share URLs (Sprint 7)
     ├── stripe.ts                # Stripe client singleton (Sprint 4)

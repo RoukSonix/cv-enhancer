@@ -1,10 +1,24 @@
-// ⚠ WARNING: This endpoint exposes PII (emails). Before any production deployment,
-// add authentication (e.g., API key check or admin session). No auth for now.
-
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function isAuthorized(req: NextRequest): boolean {
+  const token = process.env.ADMIN_TOKEN;
+  if (!token) return false;
+
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.slice(7) === token;
+  }
+
+  const queryToken = req.nextUrl.searchParams.get("token");
+  return queryToken === token;
+}
+
 export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const format = req.nextUrl.searchParams.get("format") || "json";
 
   const emails = await prisma.roast.findMany({

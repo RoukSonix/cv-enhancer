@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { TierBadge } from "@/components/TierBadge";
 import { ShareButtons } from "@/components/ShareButtons";
+import { RatingWidget } from "@/components/RatingWidget";
 import type { RoastResult } from "@/lib/types";
 import { scoreLabel } from "@/lib/score";
 
@@ -118,6 +119,9 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Rating Widget */}
+      <RatingWidget roastId={result.id} />
 
       {/* Top Issues */}
       <Card className="border-fire-orange/10">
