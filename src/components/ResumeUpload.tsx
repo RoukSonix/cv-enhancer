@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Flame, AlertTriangle, RefreshCw } from "lucide-react";
+import { Upload, Flame, AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingRoast } from "@/components/LoadingRoast";
+import { ExtractedTextPreview } from "@/components/ExtractedTextPreview";
 import { isValidEmail } from "@/lib/email";
 import { validateFile, formatFileSize } from "@/lib/file-validation";
 import type { RoastResult } from "@/lib/types";
@@ -27,7 +28,48 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
   const [loading, setLoading] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [extractedPreview, setExtractedPreview] = useState<{
+    text: string;
+    charCount: number;
+    method: string;
+    warning?: string;
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Fetch text preview when a file is selected
+  useEffect(() => {
+    if (!file) {
+      setExtractedPreview(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setPreviewLoading(true);
+
+    const fetchPreview = async () => {
+      try {
+        const formData = new FormData();
+        formData.set("resume", file);
+        const res = await fetch("/api/roast/preview", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setExtractedPreview(data);
+        }
+      } catch {
+        // Preview is best-effort — silently ignore errors
+      } finally {
+        setPreviewLoading(false);
+      }
+    };
+
+    fetchPreview();
+    return () => controller.abort();
+  }, [file]);
 
   async function handleSubmit() {
     setLoading(true);
@@ -249,6 +291,26 @@ export function ResumeUpload({ onResult, tier }: ResumeUploadProps) {
             onChange={(e) => setText(e.target.value)}
             rows={10}
             className="resize-none border-muted-foreground/20 focus:border-fire-orange/50"
+          />
+        )}
+
+        {/* Extracted text preview */}
+        {mode === "upload" && previewLoading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Extracting text...
+          </div>
+        )}
+        {mode === "upload" && extractedPreview && !previewLoading && (
+          <ExtractedTextPreview
+            text={extractedPreview.text}
+            charCount={extractedPreview.charCount}
+            warning={extractedPreview.warning}
+            onPasteInstead={() => {
+              setMode("paste");
+              setFile(null);
+              setExtractedPreview(null);
+            }}
           />
         )}
 

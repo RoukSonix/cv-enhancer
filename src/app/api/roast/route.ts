@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
-import { PDFParse } from "pdf-parse";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { runRoastAI } from "@/lib/roast-ai";
 import { isValidEmail } from "@/lib/email";
+import { extractTextFromPdf, PdfExtractionError } from "@/lib/pdf-fallback";
 import type { Prisma } from "@/generated/prisma/client";
 import type { RoastResult } from "@/lib/types";
 
 export const maxDuration = 60;
-
-async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const parser = new PDFParse({ data: new Uint8Array(buffer) });
-  try {
-    const result = await parser.getText();
-    return result.text;
-  } finally {
-    await parser.destroy();
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,7 +43,9 @@ export async function POST(req: NextRequest) {
         );
       }
       const buffer = Buffer.from(await file.arrayBuffer());
-      resumeText = await extractTextFromPdf(buffer);
+      const extraction = await extractTextFromPdf(buffer);
+      resumeText = extraction.text;
+      console.log(`PDF text extracted via ${extraction.method} (${resumeText.trim().length} chars)`);
     } else if (textInput) {
       resumeText = textInput;
     } else {
@@ -63,9 +55,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (resumeText.trim().length === 0) {
+      return NextResponse.json(
+        { error: "No text could be extracted from this PDF. It may be a scanned document (image-only). Please paste your resume text instead." },
+        { status: 400 }
+      );
+    }
+
     if (resumeText.trim().length < 50) {
       return NextResponse.json(
-        { error: "Resume text is too short. Please provide a complete resume." },
+        { error: `Very little text was extracted from this PDF (only ${resumeText.trim().length} characters). The resume may be image-based or use an unusual format. Please paste your resume text instead.` },
         { status: 400 }
       );
     }
@@ -101,6 +100,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof PdfExtractionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Roast API error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

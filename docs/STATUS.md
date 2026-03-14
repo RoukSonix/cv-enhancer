@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-13 (Sprint 7)
+**Last updated:** 2026-03-14 (Sprint 8)
 
 ## Current State
 
@@ -49,6 +49,11 @@
 | Error boundary | Working | Class component wrapping layout children (Sprint 6) |
 | Loading skeleton | Working | Pulsing skeleton for `/roast/[id]` page (Sprint 6) |
 | Mobile responsiveness | Working | Responsive padding, text sizing, button stacking (Sprint 6) |
+| PDF dual-parser fallback | Working | pdf-parse → pdfjs-dist fallback for robust extraction (Sprint 8) |
+| PDF text preview | Working | Collapsible extracted text preview before roasting (Sprint 8) |
+| PDF quality warning | Working | Amber warning when extracted text < 50 chars (Sprint 8) |
+| Preview endpoint | Working | POST /api/roast/preview — lightweight text extraction (Sprint 8) |
+| PDF error classification | Working | Encrypted, image-only, corrupted PDFs get descriptive errors (Sprint 8) |
 | OG images for social sharing | Working | Dynamic OG image generation via @vercel/og (Sprint 7) |
 | Share buttons (Twitter/X) | Working | Twitter intent URL with pre-filled score text (Sprint 7) |
 | Share buttons (LinkedIn) | Working | LinkedIn share URL with OG unfurl (Sprint 7) |
@@ -66,6 +71,23 @@
 | Domain + DNS | Not started | Medium |
 | Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 8)
+
+- `pdfjs-dist` dependency for pdf.js fallback extraction (server-side only, legacy build)
+- `pdf-lib` + `tsx` dev dependencies for test fixture generation
+- `src/lib/pdf-fallback.ts`: Dual-parser extraction (pdf-parse first, pdfjs-dist fallback), error classification (encrypted/image-only/corrupted)
+- `PdfExtractionError` class with error codes for descriptive user-facing messages
+- `POST /api/roast/preview` endpoint: lightweight text extraction (no AI, no DB), returns first 500 chars + char count + parser method + optional warning
+- `src/components/ExtractedTextPreview.tsx`: Collapsible preview with character count badge, amber warning for low text, "Paste instead" link
+- `ResumeUpload.tsx` updated: auto-fetches preview on file upload, shows loading spinner, preview silently fails (no toast on error)
+- `POST /api/roast` route updated: uses dual-parser extraction, improved error messages for empty/short text, catches `PdfExtractionError` with 400 status
+- `scripts/generate-test-pdfs.ts`: Generates 10 test fixtures programmatically (simple, multi-column, multi-page, image-heavy, minimal, encrypted, image-only, large >5MB, corrupted, wrong type)
+- `e2e/fixtures/`: Generated test PDFs for E2E testing
+- Package.json: `generate-fixtures` script, E2E script chains fixture generation
+- Unit tests: 10 tests for PDF extraction + fallback logic (`pdf-extraction.test.ts`)
+- E2E tests: 14 tests for PDF upload flows (`pdf-upload.spec.ts`)
+- `.gitignore`: Added `e2e/fixtures/large-5mb.pdf` (generated on-demand)
 
 ### Implemented (Sprint 7)
 
@@ -199,7 +221,7 @@
 - **Icons:** Lucide React
 - **AI:** OpenRouter API (MiniMax M2.5) via OpenAI SDK
 - **OG Images:** @vercel/og (Satori + Resvg WASM)
-- **PDF Parsing:** pdf-parse
+- **PDF Parsing:** pdf-parse + pdfjs-dist (dual-parser fallback)
 - **Payments:** Stripe (Checkout Sessions + Webhooks)
 - **Database:** PostgreSQL 17 (Alpine) via Prisma 7
 - **Runtime:** Node.js 22 (Alpine Docker)
@@ -218,7 +240,9 @@ src/
 │   │   │   ├── credits/route.ts # GET: check remaining bundle credits (Sprint 4)
 │   │   │   └── redeem/route.ts  # POST: redeem bundle credit (Sprint 4)
 │   │   ├── roast/
-│   │   │   ├── route.ts         # POST: PDF/text -> AI roast + DB save
+│   │   │   ├── route.ts         # POST: PDF/text -> AI roast + DB save (dual-parser — Sprint 8)
+│   │   │   ├── preview/
+│   │   │   │   └── route.ts     # POST: PDF text extraction preview (Sprint 8)
 │   │   │   └── [id]/
 │   │   │       ├── route.ts     # GET: fetch saved roast by ID (Sprint 2)
 │   │   │       └── upgrade/route.ts # POST: retry AI for stuck paid roasts (Sprint 4)
@@ -246,7 +270,8 @@ src/
 │   ├── FireParticles.tsx        # Background fire particles
 │   ├── LoadingRoast.tsx         # Loading state with jokes
 │   ├── ErrorBoundary.tsx        # React error boundary with fire-themed fallback (Sprint 6)
-│   ├── ResumeUpload.tsx         # Upload/paste form (toasts, validation, timeout — Sprint 6)
+│   ├── ExtractedTextPreview.tsx  # Collapsible PDF text preview with quality warning (Sprint 8)
+│   ├── ResumeUpload.tsx         # Upload/paste form (toasts, validation, timeout, preview — Sprint 8)
 │   ├── RoastResults.tsx         # Free tier results + payment buttons (Sprint 4)
 │   ├── RoastResultsFull.tsx     # Paid tier results display (Sprint 3)
 │   ├── TierBadge.tsx            # Free/Full Roast tier badge (Sprint 3)
@@ -264,7 +289,8 @@ src/
     │   ├── webhook.test.ts      # Unit tests for webhook logic (Sprint 4)
     │   ├── email.test.ts        # Unit tests for email validation (Sprint 5)
     │   ├── file-validation.test.ts # Unit tests for file validation (Sprint 6)
-    │   └── og.test.ts           # Unit tests for OG image helpers (Sprint 7)
+    │   ├── og.test.ts           # Unit tests for OG image helpers (Sprint 7)
+    │   └── pdf-extraction.test.ts # Unit tests for PDF extraction + fallback (Sprint 8)
     ├── openrouter.ts            # OpenRouter client config
     ├── prisma.ts                # Prisma client singleton (Sprint 2)
     ├── prompt.ts                # Free/paid roast prompts
@@ -273,6 +299,7 @@ src/
     ├── share.ts                 # Share URL encode/decode + buildShareUrlById
     ├── email.ts                 # Email validation utility (Sprint 5)
     ├── file-validation.ts       # File validation + size formatting (Sprint 6)
+    ├── pdf-fallback.ts          # Dual-parser PDF extraction with error classification (Sprint 8)
     ├── og-utils.ts              # OG image helpers: score colors, truncation, share URLs (Sprint 7)
     ├── stripe.ts                # Stripe client singleton (Sprint 4)
     ├── types.ts                 # TypeScript interfaces
