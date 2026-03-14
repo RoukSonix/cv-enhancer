@@ -161,13 +161,11 @@ Use `pdfjs-dist/legacy/build/pdf.mjs` for Node.js compatibility (no canvas/DOM d
 
 Some PDFs yield extractable text that is too short, garbled, or incomplete to produce a useful roast. The current API already rejects text < 50 chars, but the user gets a generic error after waiting for upload + processing.
 
-### Solution: Client-Side Preview + Warning
+### Solution: Preview Endpoint + Better Server Errors
 
-After PDF upload and before clicking "Roast My Resume", extract text server-side via a new lightweight endpoint and show a preview.
+After PDF upload and before clicking "Roast My Resume", extract text server-side via a new lightweight endpoint (`POST /api/roast/preview`) and show a collapsible preview. The existing API error messages for short/empty text are also improved.
 
-**However**, to keep Sprint 8 scope manageable, use a simpler approach: show the quality warning **after** the API returns the error, rather than adding a pre-roast extraction endpoint.
-
-### Revised Approach: Server-Side Quality Check with Better Errors
+### Server-Side Quality Check with Better Errors
 
 The existing API already checks `resumeText.trim().length < 50`. Enhance this:
 
@@ -242,6 +240,11 @@ Flow change:
 4. Show ExtractedTextPreview component below the drop zone
 5. If warning present → show amber banner
 6. Submit button behavior unchanged — still sends to /api/roast
+
+IMPORTANT: Preview fetch must fail gracefully (silent catch, no error toast).
+If /api/roast/preview returns an error or 404, simply don't show the preview.
+The preview is informational only — upload + roast flow must work without it.
+This prevents breaking existing E2E tests that upload PDFs without mocking the preview endpoint.
 ```
 
 ---
@@ -370,14 +373,25 @@ npm install pdfjs-dist
 - No canvas dependency needed — text extraction only
 - Works in Docker (Node 22 Alpine)
 
-### New Dev Dependency
+### New Dev Dependencies
 
 ```bash
-npm install -D pdf-lib
+npm install -D pdf-lib tsx
 ```
 
-- Used only in `scripts/generate-test-pdfs.ts` to create fixture PDFs
-- Not bundled in production
+- `pdf-lib`: Used only in `scripts/generate-test-pdfs.ts` to create fixture PDFs. Not bundled in production.
+- `tsx`: TypeScript executor for the fixture generation script. Ensures `npx tsx` works reliably in CI without on-the-fly downloads.
+
+### Package.json Script
+
+Add to `scripts` in `package.json`:
+
+```json
+"generate-fixtures": "tsx scripts/generate-test-pdfs.ts",
+"e2e": "npm run generate-fixtures && playwright test"
+```
+
+This ensures fixtures are always generated before E2E tests run (locally and in CI).
 
 ---
 
@@ -390,7 +404,8 @@ npm install -D pdf-lib
 | Generated test PDFs don't match real-world edge cases | Fixtures are a starting point. Add real-world PDFs (anonymized) in future sprints if extraction issues found in production. |
 | Preview endpoint adds latency to upload flow | Preview is async — user can still click "Roast My Resume" while preview loads. Preview endpoint has no AI call, should respond in <1s. |
 | Large fixture (5MB PDF) bloats git repo | Add `e2e/fixtures/large-5mb.pdf` to `.gitignore` and generate on-demand via script. Or use Git LFS. |
-| `pdf-lib` can't create encrypted PDFs | Use `pdf-lib`'s built-in encryption support (UserPassword option). If unsupported, use `qpdf` CLI as fallback in generation script. |
+| `pdf-lib` can't create encrypted PDFs | Use `pdf-lib`'s built-in encryption support (UserPassword option in `save()`). If unsupported, use `qpdf` CLI as fallback in generation script. |
+| Existing E2E tests break from preview fetch | `error-handling.spec.ts` uploads a fake PDF without mocking `/api/roast/preview`. Fix: preview fetch must silently catch errors (no toast, no UI change on failure). Preview is best-effort. |
 
 ---
 
@@ -419,3 +434,33 @@ npm install -D pdf-lib
 10. Quality warning shown when extracted text < 50 chars
 11. "Paste instead" link works from warning state
 12. pdf.js fallback activates when pdf-parse fails (verified by unit tests)
+13. Existing E2E tests (`roast-flow`, `error-handling`, `email-capture`, etc.) continue to pass without modification
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-14
+**Validator:** Claude (automated review)
+
+### Checklist
+
+| # | Question | Result | Notes |
+|---|----------|--------|-------|
+| 1 | Will pdf-lib work for generating test fixtures in Node.js? | PASS | Pure JS, no native deps. Use `save({ userPassword })` for encrypted PDFs (not `encrypt()`). |
+| 2 | Will pdfjs-dist fallback work in Next.js server-side (App Router)? | PASS | `pdfjs-dist/legacy/build/pdf.mjs` avoids DOM/worker deps. Pin version in package.json. |
+| 3 | Is /api/roast/preview correctly designed? No roast logic duplication? | PASS (fixed) | Contradictory text in Section 5 cleaned up. Double-parsing acceptable for Sprint 8. |
+| 4 | Will ExtractedTextPreview integrate cleanly with ResumeUpload.tsx? | PASS | Slots between drop zone and email section. Minimal state additions. |
+| 5 | Are the 14 E2E tests covering all important edge cases? | PASS | All critical paths covered: happy paths, error types, UI interactions, tier differences. |
+| 6 | Will the fixture generation script run in CI? | PASS (fixed) | Added `tsx` as devDependency. Added `generate-fixtures` script. E2E script now chains fixture generation. |
+| 7 | Does error classification cover all pdf-parse failure modes? | PASS | Encrypted, image-only, corrupted covered. Catch-all handles edge cases. |
+| 8 | Will existing E2E tests break? | PASS (fixed) | `error-handling.spec.ts` uploads fake PDFs without mocking preview endpoint. Fixed: preview fetch must fail silently (no toast). Added to risks table. |
+
+### Fixes Applied
+
+1. **Section 5 reworded** — Removed contradictory "simpler approach" paragraph. Section now clearly describes the preview endpoint as the chosen approach.
+2. **Preview fetch resilience** — Added explicit requirement that preview fetch failures must be silent (no error toast, no UI disruption). This prevents breaking existing E2E tests.
+3. **`tsx` added as devDependency** — Ensures fixture generation works reliably in CI without npx on-the-fly downloads.
+4. **`generate-fixtures` script added** — E2E script chains fixture generation so they're always up-to-date.
+5. **Risks table updated** — Added existing E2E test breakage risk with mitigation.
+6. **Acceptance criteria #13 added** — Existing E2E tests must continue to pass.
