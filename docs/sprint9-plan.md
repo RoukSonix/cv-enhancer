@@ -89,7 +89,10 @@ model Roast {
 
 **Implementation:**
 - `prisma.roast.count()` for total roasts
-- `prisma.roast.aggregate()` for average rating (where rating is not null)
+- `prisma.roast.count({ where: { rating: 1 } })` for positiveRatingCount
+- `prisma.roast.count({ where: { rating: { not: null } } })` for totalRatings
+- `avgRating = positiveRatingCount / totalRatings` (ratio, 0–1 scale)
+- **Do NOT use `prisma.roast.aggregate({ _avg: { rating: true } })`** — that computes SQL AVG over 1/-1 values which gives a different number (e.g., 0.64 vs 0.82)
 - Cache result for 60 seconds using `unstable_cache` or a simple in-memory cache with timestamp
 
 ### 2. `POST /api/roast/[id]/rate` — Submit rating
@@ -137,6 +140,7 @@ model Roast {
 - Multiple Prisma aggregation queries
 - Revenue estimate: `(paidSingle * 9.99) + (bundlePurchases * 24.99)` — approximate from paid roast count and credit usage
 - **No auth for MVP** — protect with a simple env var token (`ADMIN_TOKEN`) passed as Bearer auth header or query param
+- **Also retrofit `ADMIN_TOKEN` check to existing `admin/emails` route** — it currently has zero auth and exposes PII (emails). Apply the same token middleware for consistency.
 - Short cache (10s) or no cache
 
 ---
@@ -196,6 +200,7 @@ model Roast {
 | `src/app/page.tsx` | Edit | Replace static social proof with `<SocialProof />` |
 | `src/components/RoastResults.tsx` | Edit | Add `<RatingWidget />` after score card |
 | `src/components/RoastResultsFull.tsx` | Edit | Add `<RatingWidget />` after score card |
+| `src/app/api/admin/emails/route.ts` | Edit | Add `ADMIN_TOKEN` auth check (currently unprotected PII) |
 
 ---
 
@@ -269,3 +274,30 @@ Simple in-memory cache. Works for single-server deployment (which is the current
 - User authentication for admin — token-based for now
 - Event tracking beyond DB (page views, click events) — not needed until we have real traffic
 - A/B testing — post-launch concern
+
+---
+
+## Validation: APPROVED
+
+**Reviewed:** 2026-03-14 | **Verdict:** Approved with 2 fixes applied
+
+### Issues Found & Fixed
+
+1. **`avgRating` calculation bug risk (Fixed)**
+   - The example stats showed `avgRating: 0.82` with 156/190 positive ratings, which is a ratio (`positiveCount / totalCount = 0.82`). But the implementation section said to use `prisma.roast.aggregate()`, which computes SQL `AVG()` over 1/-1 values = `(156 - 34) / 190 = 0.642`. These produce different numbers. **Fix:** Explicitly specified to compute `positiveRatingCount / totalRatings` instead of SQL AVG.
+
+2. **Existing `admin/emails` has no auth (Fixed)**
+   - The plan adds `ADMIN_TOKEN` protection to the new `admin/stats` endpoint, but the existing `admin/emails` route exposes PII (emails, opt-in status) with zero authentication. **Fix:** Added `admin/emails` to the file changes list to retrofit the same token check.
+
+### Validation Checklist
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | `rating Int?` on Roast vs separate table | ✅ Correct — simpler, no joins, not a reviews system |
+| 2 | In-memory cache in serverless/Docker | ✅ Fine — single-process Docker deployment, acknowledged |
+| 3 | `/api/stats` PII safety | ✅ Only returns aggregates (counts, averages) |
+| 4 | Admin page auth | ✅ Token-based adequate for MVP |
+| 5 | API endpoint RESTful consistency | ✅ Nests under existing `/api/roast/[id]` pattern |
+| 6 | Existing E2E test breakage | ✅ No — static pills ("Free instant feedback", "No signup required") preserved |
+| 7 | Caching strategy for expected traffic | ✅ 60s TTL sufficient for early traffic |
+| 8 | Rating system 1/-1 vs boolean | ✅ 1/-1 is fine — clarified aggregation math |
