@@ -10,6 +10,7 @@ import { RoastResults } from "@/components/RoastResults";
 import { RoastResultsFull } from "@/components/RoastResultsFull";
 import { FireParticles } from "@/components/FireParticles";
 import { buildShareUrlById } from "@/lib/share";
+import { SocialProof } from "@/components/SocialProof";
 import type { RoastResult } from "@/lib/types";
 
 function HomeContent() {
@@ -119,17 +120,7 @@ function HomeContent() {
         )}
 
         {/* Social proof */}
-        {!result && (
-          <div className="text-center mt-16 space-y-2 animate-slide-up-fade" style={{ animationDelay: "500ms" }}>
-            <p className="text-sm text-muted-foreground">
-              Trusted by job seekers who can handle the truth
-            </p>
-            <div className="flex justify-center gap-6 text-xs text-muted-foreground/60">
-              <span>Free instant feedback</span>
-              <span>No signup required</span>
-            </div>
-          </div>
-        )}
+        {!result && <SocialProof />}
 
         {/* Footer */}
         <footer className="text-center mt-20 pb-8 text-xs text-muted-foreground/50">

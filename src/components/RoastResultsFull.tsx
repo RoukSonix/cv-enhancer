@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AnimatedScore } from "@/components/AnimatedScore";
 import { TierBadge } from "@/components/TierBadge";
 import { ShareButtons } from "@/components/ShareButtons";
+import { RatingWidget } from "@/components/RatingWidget";
 import {
   AlertTriangle,
   Lightbulb,
@@ -64,6 +65,9 @@ export function RoastResultsFull({ result, onReset }: RoastResultsFullProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Rating Widget */}
+      <RatingWidget roastId={result.id} />
 
       {/* Top Issues */}
       <Card className="border-fire-orange/10">
