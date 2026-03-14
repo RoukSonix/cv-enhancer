@@ -175,7 +175,9 @@
 
 ---
 
-## Sprint 8: PDF Upload E2E Testing
+## Sprint 8: PDF Upload E2E Testing — COMPLETE
+
+**Completed:** 2026-03-14 | **PR:** [#13](https://github.com/RoukSonix/cv-enhancer/pull/13)
 
 **Goal:** Ensure PDF upload works reliably with various resume formats.
 
