@@ -215,7 +215,9 @@
 
 ---
 
-## Sprint 10: Auth & User Accounts
+## Sprint 10: Auth & User Accounts — COMPLETE
+
+**Completed:** 2026-03-14 | **PR:** [#15](https://github.com/RoukSonix/cv-enhancer/pull/15)
 
 **Goal:** Users can create accounts to access roast history and manage purchases.
 
