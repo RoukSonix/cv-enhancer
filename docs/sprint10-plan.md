@@ -365,3 +365,57 @@ This is **optional** — implement only if time permits. Cookie-based flow conti
 | Retroactive roast linking matches wrong user | Data integrity | Only match on exact email + `userId IS NULL` — safe because email is unique per User |
 | Header adding height affects existing layouts | Visual regression | Use sticky positioning with `z-50`; test all pages visually |
 | E2E tests break with header added to all pages | CI failures | Update selectors if needed; header is additive (doesn't remove anything) |
+
+---
+
+## Validation: APPROVED
+
+**Reviewed:** 2026-03-14 by validation agent
+
+### Verdict: Plan is solid. Three minor fixes required before implementation.
+
+### Fixes Applied to This Plan
+
+#### Fix 1: Email Case Normalization (Critical)
+Emails stored on Roast records are not lowercased (`email.trim()` only). Google OAuth returns lowercase emails, but magic link and user-entered emails may have mixed case, causing retroactive linking to silently fail.
+
+**Action:** In the roast API (`src/app/api/roast/route.ts`), lowercase email before storing:
+```typescript
+const email = (formData.get("email") as string | null)?.trim().toLowerCase() || null;
+```
+And in the `signIn` callback, normalize before matching:
+```typescript
+const normalizedEmail = user.email?.toLowerCase();
+if (normalizedEmail && user.id) {
+  await prisma.roast.updateMany({
+    where: { email: normalizedEmail, userId: null },
+    data: { userId: user.id },
+  });
+}
+```
+
+#### Fix 2: Use `AUTH_URL` Instead of `NEXTAUTH_URL`
+Auth.js v5 canonical env var is `AUTH_URL`, not `NEXTAUTH_URL`. Update the environment variables section:
+```env
+AUTH_URL=http://localhost:3000   # was NEXTAUTH_URL
+```
+
+#### Fix 3: Document Admin Bootstrapping
+Add to implementation order (after step 3):
+> After first admin signs in via Google/magic link, manually promote to admin:
+> ```sql
+> UPDATE "User" SET "isAdmin" = true WHERE email = 'admin@resumeroaster.com';
+> ```
+
+### Validation Notes
+
+| # | Check | Result | Notes |
+|---|-------|--------|-------|
+| 1 | Auth.js v5 + Next.js 16 | PASS | Stable combo; verify `@auth/prisma-adapter` with Prisma 7.x `prisma-client` generator |
+| 2 | JWT without session table | PASS | Adapter handles User/Account; JWT handles sessions — correct pattern |
+| 3 | Auth.js schema models | PASS | User, Account, VerificationToken all match Auth.js v5 expected schema |
+| 4 | Retroactive email linking | PASS (with Fix 1) | Logic is sound; email normalization needed to prevent silent mismatches |
+| 5 | Admin `isAdmin` approach | PASS (with Fix 3) | JWT-based admin is fine at this scale; document bootstrapping |
+| 6 | E2E test compatibility | PASS | All 8 specs use resilient selectors (getByRole, getByPlaceholder); SessionProvider returns null for anon — no breakage expected |
+| 7 | Provider combo | PASS | Google + Resend is the right choice for consumer resume product |
+| 8 | Migration strategy | PASS | Nullable FK + runtime linking is safe and zero-downtime |
