@@ -17,8 +17,9 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  roasts        Roast[]
+  accounts           Account[]
+  roasts             Roast[]
+  templatePurchases  TemplatePurchase[]
 }
 
 model Account {
@@ -90,4 +91,19 @@ model Credit {
 
   @@index([bundleToken])
   @@index([stripeSessionId])
+}
+
+model TemplatePurchase {
+  id              String    @id @default(cuid())
+  email           String
+  stripeSessionId String    @unique
+  paidAt          DateTime  @default(now())
+  downloadCount   Int       @default(0)
+  lastDownloadAt  DateTime?
+
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([userId])
 }

@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-14 (Sprint 10)
+**Last updated:** 2026-03-14 (Sprint 11)
 
 ## Current State
 
@@ -67,6 +67,12 @@
 | OG image API (encoded) | Working | `GET /api/og?r=<encoded>` — lz-string decode, PNG generation (Sprint 7) |
 | metadataBase | Working | Root layout metadataBase for absolute OG URLs (Sprint 7) |
 
+| Template Pack sales page | Working | `/templates` page with 5 template cards, Stripe Checkout ($29), ZIP download (Sprint 11) |
+| Template checkout | Working | `POST /api/checkout/templates` — separate checkout for template purchases (Sprint 11) |
+| Template webhook | Working | Stripe webhook handles `purchaseType: "templates"` metadata, creates TemplatePurchase (Sprint 11) |
+| Template download | Working | `GET /api/templates/download?session_id=` — ZIP of 5 DOCX templates, session-verified (Sprint 11) |
+| Template success page | Working | `/templates/success` with payment polling and download button (Sprint 11) |
+| Template cross-sell | Working | "Resume Template Pack" buttons in RoastResults/RoastResultsFull link to `/templates` (Sprint 11) |
 | Auth (Google + Magic Link) | Working | Auth.js v5 with Google OAuth + Resend magic link, JWT sessions, isAdmin role (Sprint 10) |
 | Sign-in page | Working | Custom branded `/auth/signin` with Google + email options (Sprint 10) |
 | User dashboard | Working | `/dashboard` showing roast history for signed-in users (Sprint 10) |
@@ -82,8 +88,23 @@
 |---------|--------|----------|
 | Deploy (Vercel) | Not started | Medium |
 | Domain + DNS | Not started | Medium |
-| Template Pack page | Not started | Low |
 | Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 11)
+
+- Prisma schema: `TemplatePurchase` model with nullable `userId` FK, `stripeSessionId` unique, download count tracking
+- `data/templates/`: 5 DOCX resume template stubs (modern-minimal, corporate, creative-bold, tech-developer, ats-optimized) — stored outside `public/` for security
+- `scripts/generate-templates.ts`: DOCX generation script using `docx` npm package
+- `src/lib/stripe.ts`: Added `STRIPE_PRICE_TEMPLATES` env var export
+- `POST /api/checkout/templates`: Separate checkout route for template purchases (CSRF protection, optional auth session)
+- `POST /api/webhooks/stripe`: Extended with template purchase branch BEFORE roastId guard (metadata-based detection, idempotent)
+- `GET /api/templates/download`: ZIP download endpoint with session_id verification, download count tracking
+- `src/app/templates/page.tsx`: Sales page with 5 template cards, purchase CTA, FAQ section
+- `src/app/templates/success/page.tsx`: Success page with payment polling and download button, cross-sell to roast
+- `src/components/RoastResults.tsx`: Cross-sell button now links to `/templates` (was "Coming soon!" toast)
+- `src/components/RoastResultsFull.tsx`: Same cross-sell update + added `useRouter` import
+- Dependencies: `jszip` (prod), `docx` (dev)
+- Unit tests: 15 tests in `templates.test.ts` (purchase detection, webhook processing, download auth, count tracking)
 
 ### Implemented (Sprint 10)
 
@@ -288,7 +309,8 @@ src/
 │   │   ├── checkout/
 │   │   │   ├── route.ts         # POST: create Stripe Checkout session (Sprint 4)
 │   │   │   ├── credits/route.ts # GET: check remaining bundle credits (Sprint 4)
-│   │   │   └── redeem/route.ts  # POST: redeem bundle credit (Sprint 4)
+│   │   │   ├── redeem/route.ts  # POST: redeem bundle credit (Sprint 4)
+│   │   │   └── templates/route.ts # POST: template pack checkout session (Sprint 11)
 │   │   ├── roast/
 │   │   │   ├── route.ts         # POST: PDF/text -> AI roast + DB save (dual-parser — Sprint 8)
 │   │   │   ├── preview/
@@ -302,8 +324,10 @@ src/
 │   │   ├── og/
 │   │   │   ├── route.tsx        # GET: OG image for encoded share URLs (Sprint 7)
 │   │   │   └── [id]/route.tsx   # GET: OG image for DB roasts (Sprint 7)
+│   │   ├── templates/
+│   │   │   └── download/route.ts # GET: template ZIP download with session verification (Sprint 11)
 │   │   └── webhooks/stripe/
-│   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4)
+│   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4, extended Sprint 11)
 │   ├── admin/
 │   │   └── page.tsx             # Admin dashboard with session-based isAdmin check (Sprint 10)
 │   ├── auth/
@@ -320,6 +344,9 @@ src/
 │   │   └── [id]/
 │   │       ├── page.tsx         # Permalink results from DB (Sprint 2)
 │   │       └── loading.tsx      # Skeleton loading UI (Sprint 6)
+│   ├── templates/
+│   │   ├── page.tsx             # Template pack sales page (Sprint 11)
+│   │   └── success/page.tsx     # Post-purchase success + download page (Sprint 11)
 │   ├── layout.tsx               # Root layout (SessionProvider, Header, ErrorBoundary — Sprint 10)
 │   ├── page.tsx                 # Main page (landing + results)
 │   └── globals.css              # Global styles, fire theme
@@ -355,7 +382,8 @@ src/
     │   ├── pdf-extraction.test.ts # Unit tests for PDF extraction + fallback (Sprint 8)
     │   ├── stats.test.ts          # Unit tests for stats cache (Sprint 9)
     │   ├── rating.test.ts         # Unit tests for rating validation + auth (Sprint 9)
-    │   └── auth.test.ts           # Unit tests for auth callbacks + admin helper (Sprint 10)
+    │   ├── auth.test.ts           # Unit tests for auth callbacks + admin helper (Sprint 10)
+    │   └── templates.test.ts      # Unit tests for template purchase logic (Sprint 11)
     ├── auth.ts                  # Auth.js v5 config + isAdminAuthorized helper (Sprint 10)
     ├── auth-types.ts            # Auth type augmentation for Session + JWT (Sprint 10)
     ├── openrouter.ts            # OpenRouter client config
@@ -373,5 +401,5 @@ src/
     ├── types.ts                 # TypeScript interfaces
     └── utils.ts                 # Utility functions
 prisma/
-└── schema.prisma                # Prisma schema with User, Account, VerificationToken, Roast, Credit models
+└── schema.prisma                # Prisma schema with User, Account, VerificationToken, Roast, Credit, TemplatePurchase models
 ```

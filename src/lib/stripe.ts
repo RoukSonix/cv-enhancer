@@ -10,6 +10,7 @@ function requireEnv(name: string): string {
 
 export const STRIPE_PRICE_SINGLE = requireEnv("STRIPE_PRICE_SINGLE");
 export const STRIPE_PRICE_BUNDLE = requireEnv("STRIPE_PRICE_BUNDLE");
+export const STRIPE_PRICE_TEMPLATES = requireEnv("STRIPE_PRICE_TEMPLATES");
 export const STRIPE_WEBHOOK_SECRET = requireEnv("STRIPE_WEBHOOK_SECRET");
 
 export const stripe = new Stripe(requireEnv("STRIPE_SECRET_KEY"));

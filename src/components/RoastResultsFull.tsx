@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ interface RoastResultsFullProps {
 }
 
 export function RoastResultsFull({ result, onReset }: RoastResultsFullProps) {
+  const router = useRouter();
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
       {/* Overall Score */}
@@ -200,7 +202,7 @@ export function RoastResultsFull({ result, onReset }: RoastResultsFullProps) {
               variant="outline"
               size="sm"
               className="hover:border-fire-orange hover:text-fire-orange transition-colors"
-              onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
+              onClick={() => router.push("/templates")}
             >
               Resume Template Pack -- $29
             </Button>

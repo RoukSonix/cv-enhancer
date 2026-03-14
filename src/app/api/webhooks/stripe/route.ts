@@ -28,6 +28,24 @@ export async function POST(req: NextRequest) {
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
+
+  // Handle template purchases (must be before roastId guard — templates have no roastId)
+  if (session.metadata?.purchaseType === "templates") {
+    const existing = await prisma.templatePurchase.findUnique({
+      where: { stripeSessionId: session.id },
+    });
+    if (existing) return NextResponse.json({ received: true });
+
+    await prisma.templatePurchase.create({
+      data: {
+        email: session.customer_email ?? session.customer_details?.email ?? "",
+        stripeSessionId: session.id,
+        userId: session.metadata.userId || null,
+      },
+    });
+    return NextResponse.json({ received: true });
+  }
+
   const { roastId, priceType, bundleToken } = session.metadata ?? {};
 
   if (!roastId || !priceType) {
