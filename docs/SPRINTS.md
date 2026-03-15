@@ -255,7 +255,9 @@
 
 ---
 
-## Sprint 12: Rewrite Service Page
+## Sprint 12: Rewrite Service Page — COMPLETE
+
+**Completed:** 2026-03-15 | **PR:** [#17](https://github.com/RoukSonix/cv-enhancer/pull/17)
 
 **Goal:** Offer done-for-you resume rewrite service ($99-$199).
 
