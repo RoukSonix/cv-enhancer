@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-14 (Sprint 11)
+**Last updated:** 2026-03-15 (Sprint 12)
 
 ## Current State
 
@@ -82,13 +82,43 @@
 | Dual admin API auth | Working | Admin APIs accept session isAdmin OR ADMIN_TOKEN (Sprint 10) |
 | Email normalization | Working | Emails lowercased on storage and linking (Sprint 10) |
 
+| Rewrite sales page | Working | `/rewrite` page with pricing tiers, booking form, FAQ (Sprint 12) |
+| Rewrite checkout | Working | `POST /api/checkout/rewrite` — FormData, PDF upload, order-before-checkout pattern (Sprint 12) |
+| Rewrite webhook | Working | Stripe webhook handles `purchaseType: "rewrite"` metadata, updates order status (Sprint 12) |
+| Rewrite success page | Working | `/rewrite/success` with payment polling and order confirmation (Sprint 12) |
+| Rewrite order status API | Working | `GET /api/rewrite/status?session_id=` — customer order lookup (Sprint 12) |
+| Admin orders page | Working | `/admin/orders` with order table, status dropdowns, expandable details (Sprint 12) |
+| Admin orders API | Working | `GET /api/admin/orders` + `PATCH /api/admin/orders/[id]` — dual auth (Sprint 12) |
+| Admin order notification | Working | Email notification via Resend on new paid orders (Sprint 12) |
+| Rewrite cross-sell | Working | "Professional Rewrite" buttons in RoastResults/RoastResultsFull link to `/rewrite` (Sprint 12) |
+| Header navigation | Working | Templates + Rewrite nav links in header (Sprint 12) |
+
 ### Not Implemented (Stubs / Missing)
 
 | Feature | Status | Priority |
 |---------|--------|----------|
 | Deploy (Vercel) | Not started | Medium |
 | Domain + DNS | Not started | Medium |
-| Rewrite Service page | Not started | Low |
+
+### Implemented (Sprint 12)
+
+- Prisma schema: `RewriteOrder` model with nullable `userId` FK, nullable unique `stripeSessionId`, status progression tracking
+- `src/lib/stripe.ts`: Added `getRewritePriceId()` lazy-loaded function (avoids breaking existing tests with module-level `requireEnv`)
+- `src/lib/rewrite-email.ts`: Admin notification via Resend on new paid orders (graceful no-op if env vars missing)
+- `POST /api/checkout/rewrite`: FormData checkout route with PDF upload, order-before-checkout pattern (avoids Stripe 500-char metadata limit)
+- `POST /api/webhooks/stripe`: Extended with rewrite purchase branch between templates and roastId guard (idempotent, fire-and-forget admin notification)
+- `GET /api/rewrite/status`: Customer order status lookup by `session_id`
+- `GET /api/admin/orders`: Admin order list endpoint (dual auth)
+- `PATCH /api/admin/orders/[id]`: Admin status update endpoint with deliveredAt auto-set
+- `src/components/RewriteBookingForm.tsx`: Booking form with PDF drag-drop, tier selection, email pre-fill, notes
+- `src/app/rewrite/page.tsx`: Sales page with hero, how-it-works, pricing tiers, booking form, FAQ
+- `src/app/rewrite/success/page.tsx`: Order confirmation with payment polling, turnaround info, cross-sell
+- `src/app/admin/orders/page.tsx`: Admin order management with status dropdowns, expandable details, refresh
+- `src/components/RoastResults.tsx`: Cross-sell button now links to `/rewrite` (was "Coming soon!" toast)
+- `src/components/RoastResultsFull.tsx`: Same cross-sell update, removed unused `toast` import
+- `src/components/Header.tsx`: Added Templates + Rewrite nav links with PenTool icon
+- `.env.example`: Added `STRIPE_PRICE_REWRITE_BASIC`, `STRIPE_PRICE_REWRITE_PREMIUM`, `ADMIN_EMAIL`
+- Unit tests: 15 tests in `rewrite.test.ts` (purchase detection, checkout validation, webhook processing, admin status updates, email notification, lazy price IDs)
 
 ### Implemented (Sprint 11)
 
@@ -303,14 +333,18 @@ src/
 │   ├── api/
 │   │   ├── admin/
 │   │   │   ├── emails/route.ts  # GET: email export endpoint (dual auth — Sprint 10)
-│   │   │   └── stats/route.ts   # GET: admin dashboard stats (dual auth — Sprint 10)
+│   │   │   ├── stats/route.ts   # GET: admin dashboard stats (dual auth — Sprint 10)
+│   │   │   └── orders/
+│   │   │       ├── route.ts     # GET: list rewrite orders (dual auth — Sprint 12)
+│   │   │       └── [id]/route.ts # PATCH: update order status (dual auth — Sprint 12)
 │   │   ├── auth/
 │   │   │   └── [...nextauth]/route.ts # Auth.js route handler (Sprint 10)
 │   │   ├── checkout/
 │   │   │   ├── route.ts         # POST: create Stripe Checkout session (Sprint 4)
 │   │   │   ├── credits/route.ts # GET: check remaining bundle credits (Sprint 4)
 │   │   │   ├── redeem/route.ts  # POST: redeem bundle credit (Sprint 4)
-│   │   │   └── templates/route.ts # POST: template pack checkout session (Sprint 11)
+│   │   │   ├── templates/route.ts # POST: template pack checkout session (Sprint 11)
+│   │   │   └── rewrite/route.ts # POST: rewrite service checkout session (Sprint 12)
 │   │   ├── roast/
 │   │   │   ├── route.ts         # POST: PDF/text -> AI roast + DB save (dual-parser — Sprint 8)
 │   │   │   ├── preview/
@@ -324,12 +358,15 @@ src/
 │   │   ├── og/
 │   │   │   ├── route.tsx        # GET: OG image for encoded share URLs (Sprint 7)
 │   │   │   └── [id]/route.tsx   # GET: OG image for DB roasts (Sprint 7)
+│   │   ├── rewrite/
+│   │   │   └── status/route.ts  # GET: customer order status by session_id (Sprint 12)
 │   │   ├── templates/
 │   │   │   └── download/route.ts # GET: template ZIP download with session verification (Sprint 11)
 │   │   └── webhooks/stripe/
-│   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4, extended Sprint 11)
+│   │       └── route.ts         # POST: Stripe webhook handler (Sprint 4, extended Sprint 11, Sprint 12)
 │   ├── admin/
-│   │   └── page.tsx             # Admin dashboard with session-based isAdmin check (Sprint 10)
+│   │   ├── page.tsx             # Admin dashboard with session-based isAdmin check (Sprint 10)
+│   │   └── orders/page.tsx      # Admin rewrite order management (Sprint 12)
 │   ├── auth/
 │   │   └── signin/page.tsx      # Custom sign-in page (Google + magic link — Sprint 10)
 │   ├── dashboard/
@@ -344,6 +381,9 @@ src/
 │   │   └── [id]/
 │   │       ├── page.tsx         # Permalink results from DB (Sprint 2)
 │   │       └── loading.tsx      # Skeleton loading UI (Sprint 6)
+│   ├── rewrite/
+│   │   ├── page.tsx             # Rewrite service sales page (Sprint 12)
+│   │   └── success/page.tsx     # Rewrite order confirmation page (Sprint 12)
 │   ├── templates/
 │   │   ├── page.tsx             # Template pack sales page (Sprint 11)
 │   │   └── success/page.tsx     # Post-purchase success + download page (Sprint 11)
@@ -356,7 +396,8 @@ src/
 │   ├── FireParticles.tsx        # Background fire particles
 │   ├── LoadingRoast.tsx         # Loading state with jokes
 │   ├── ErrorBoundary.tsx        # React error boundary with fire-themed fallback (Sprint 6)
-│   ├── Header.tsx               # Sticky header with auth controls (Sprint 10)
+│   ├── Header.tsx               # Sticky header with auth controls + nav links (Sprint 10, Sprint 12)
+│   ├── RewriteBookingForm.tsx   # Rewrite booking form with PDF upload + tier select (Sprint 12)
 │   ├── ExtractedTextPreview.tsx  # Collapsible PDF text preview with quality warning (Sprint 8)
 │   ├── ResumeUpload.tsx         # Upload/paste form (toasts, validation, timeout, preview — Sprint 8)
 │   ├── RoastResults.tsx         # Free tier results + payment buttons (Sprint 4)
@@ -383,7 +424,8 @@ src/
     │   ├── stats.test.ts          # Unit tests for stats cache (Sprint 9)
     │   ├── rating.test.ts         # Unit tests for rating validation + auth (Sprint 9)
     │   ├── auth.test.ts           # Unit tests for auth callbacks + admin helper (Sprint 10)
-    │   └── templates.test.ts      # Unit tests for template purchase logic (Sprint 11)
+    │   ├── templates.test.ts      # Unit tests for template purchase logic (Sprint 11)
+    │   └── rewrite.test.ts        # Unit tests for rewrite service logic (Sprint 12)
     ├── auth.ts                  # Auth.js v5 config + isAdminAuthorized helper (Sprint 10)
     ├── auth-types.ts            # Auth type augmentation for Session + JWT (Sprint 10)
     ├── openrouter.ts            # OpenRouter client config
@@ -397,9 +439,10 @@ src/
     ├── stats-cache.ts            # In-memory stats cache with 60s TTL (Sprint 9)
     ├── pdf-fallback.ts          # Dual-parser PDF extraction with error classification (Sprint 8)
     ├── og-utils.ts              # OG image helpers: score colors, truncation, share URLs (Sprint 7)
-    ├── stripe.ts                # Stripe client singleton (Sprint 4)
+    ├── rewrite-email.ts          # Admin notification for rewrite orders via Resend (Sprint 12)
+    ├── stripe.ts                # Stripe client singleton + lazy rewrite price IDs (Sprint 4, Sprint 12)
     ├── types.ts                 # TypeScript interfaces
     └── utils.ts                 # Utility functions
 prisma/
-└── schema.prisma                # Prisma schema with User, Account, VerificationToken, Roast, Credit, TemplatePurchase models
+└── schema.prisma                # Prisma schema with User, Account, VerificationToken, Roast, Credit, TemplatePurchase, RewriteOrder models
 ```

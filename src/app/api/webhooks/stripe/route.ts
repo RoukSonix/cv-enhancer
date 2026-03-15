@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { stripe, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { runRoastAI } from "@/lib/roast-ai";
+import { sendAdminOrderNotification } from "@/lib/rewrite-email";
 import type { Prisma } from "@/generated/prisma/client";
 import type { RoastResult } from "@/lib/types";
 
@@ -43,6 +44,42 @@ export async function POST(req: NextRequest) {
         userId: session.metadata.userId || null,
       },
     });
+    return NextResponse.json({ received: true });
+  }
+
+  // Handle rewrite purchases (must be before roastId guard — rewrites have no roastId)
+  if (session.metadata?.purchaseType === "rewrite") {
+    const orderId = session.metadata.orderId;
+    if (orderId) {
+      try {
+        const order = await prisma.rewriteOrder.findUnique({
+          where: { id: orderId },
+          select: { status: true, email: true, tier: true, notes: true },
+        });
+
+        // Idempotency: only update if still pending
+        if (order && order.status === "pending") {
+          await prisma.rewriteOrder.update({
+            where: { id: orderId },
+            data: {
+              status: "paid",
+              paidAt: new Date(),
+              stripeSessionId: session.id,
+            },
+          });
+
+          // Send admin notification (fire-and-forget)
+          sendAdminOrderNotification({
+            id: orderId,
+            email: order.email,
+            tier: order.tier,
+            notes: order.notes,
+          }).catch((err) => console.error("Admin notification failed:", err));
+        }
+      } catch (err) {
+        console.error("Rewrite webhook error:", err);
+      }
+    }
     return NextResponse.json({ received: true });
   }
 
