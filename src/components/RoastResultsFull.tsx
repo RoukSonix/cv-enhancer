@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -210,7 +209,7 @@ export function RoastResultsFull({ result, onReset }: RoastResultsFullProps) {
               variant="outline"
               size="sm"
               className="hover:border-fire-orange hover:text-fire-orange transition-colors"
-              onClick={() => toast("Coming soon!", { description: "Payments will be available shortly." })}
+              onClick={() => router.push("/rewrite")}
             >
               Professional Rewrite -- $99
             </Button>

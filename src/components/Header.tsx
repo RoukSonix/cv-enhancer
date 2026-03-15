@@ -3,7 +3,7 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Flame, LogOut, LayoutDashboard, Shield, ChevronDown } from "lucide-react";
+import { Flame, LogOut, LayoutDashboard, Shield, ChevronDown, PenTool } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
@@ -30,6 +30,23 @@ export function Header() {
           <Flame className="h-5 w-5 text-orange-500" />
           <span className="text-gradient-fire">Resume Roaster</span>
         </Link>
+
+        {/* Nav links */}
+        <nav className="hidden sm:flex items-center gap-1">
+          <Link
+            href="/templates"
+            className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
+          >
+            Templates
+          </Link>
+          <Link
+            href="/rewrite"
+            className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
+          >
+            <PenTool className="h-3.5 w-3.5" />
+            Rewrite
+          </Link>
+        </nav>
 
         {/* Auth controls */}
         <div className="flex items-center gap-3">

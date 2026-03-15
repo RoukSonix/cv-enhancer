@@ -20,6 +20,7 @@ model User {
   accounts           Account[]
   roasts             Roast[]
   templatePurchases  TemplatePurchase[]
+  rewriteOrders      RewriteOrder[]
 }
 
 model Account {
@@ -106,4 +107,25 @@ model TemplatePurchase {
 
   @@index([email])
   @@index([userId])
+}
+
+model RewriteOrder {
+  id              String    @id @default(cuid())
+  email           String
+  tier            String                          // "basic" or "premium"
+  resumeText      String                          // original resume text from upload
+  notes           String?                         // optional customer notes
+  stripeSessionId String?   @unique               // Stripe Checkout session ID (null until session created)
+  status          String    @default("pending")   // pending | paid | in_progress | delivered
+  createdAt       DateTime  @default(now())
+  paidAt          DateTime?
+  deliveredAt     DateTime?
+
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }

@@ -321,7 +321,7 @@ export function RoastResults({ result, onReset }: RoastResultsProps) {
               variant="outline"
               size="sm"
               className="hover:border-fire-orange hover:text-fire-orange transition-colors"
-              onClick={() => toast("Coming soon!", { description: "Professional Rewrite will be available in a future update." })}
+              onClick={() => router.push("/rewrite")}
             >
               Professional Rewrite -- $99
             </Button>
