@@ -26,7 +26,7 @@ model RewriteOrder {
   tier            String                          // "basic" or "premium"
   resumeText      String                          // original resume text from upload
   notes           String?                         // optional customer notes
-  stripeSessionId String    @unique               // Stripe Checkout session ID
+  stripeSessionId String?   @unique               // Stripe Checkout session ID (null until session created)
   status          String    @default("pending")   // pending | paid | in_progress | delivered
   createdAt       DateTime  @default(now())
   paidAt          DateTime?
@@ -95,7 +95,7 @@ Logic:
 3. Extract text from PDF using `extractTextFromPdf` from `src/lib/pdf-fallback.ts` if file provided
 4. Validate: tier must be "basic" or "premium", resumeText non-empty, email valid
 5. Get optional auth session via `auth()`
-6. Create `RewriteOrder` in Prisma with `status: "pending"`, `stripeSessionId: ""` placeholder
+6. Create `RewriteOrder` in Prisma with `status: "pending"`, `stripeSessionId: null`
 7. Determine price ID based on tier
 8. Create Stripe Checkout session with metadata `{ purchaseType: "rewrite", orderId, tier }`
 9. Update order with `stripeSessionId: session.id`
@@ -300,3 +300,38 @@ Dependencies dictate this sequence:
 3. **Resend transactional email.** Package is installed for Auth.js magic links; direct use requires same `RESEND_API_KEY`. `from` address must match verified Resend domain.
 4. **Admin page complexity.** Keep v1 simple — flat list with status dropdowns, no pagination (low volume expected).
 5. **Status race conditions.** Webhook and admin could update simultaneously. Guard with `where` clauses to prevent backwards transitions.
+6. **New env vars break existing tests.** Adding `requireEnv("STRIPE_PRICE_REWRITE_BASIC")` and `requireEnv("STRIPE_PRICE_REWRITE_PREMIUM")` at module level in `stripe.ts` will crash any test that imports it without these vars set. Add placeholder values to `.env.test` and CI secrets alongside the existing Stripe price vars.
+
+---
+
+## Validation: APPROVED
+
+**Reviewed:** 2026-03-15
+**Validator:** AI Validation Agent
+
+### Findings
+
+All 8 validation checks pass with two fixes applied:
+
+1. **Order-before-checkout pattern** — Correct. Matches the roast pattern (create record first, pass ID in metadata). Avoids Stripe's 500-char metadata limit. Orphaned `pending` orders from abandoned checkouts are acceptable for v1.
+
+2. **Webhook branching** — Correct. New `purchaseType === "rewrite"` branch slots cleanly between the existing `templates` branch (line 33) and the `roastId` guard (line 49). No conflicts.
+
+3. **Resend email** — Correct. Package already installed (v6.9.3), `RESEND_API_KEY` already in use for Auth.js magic links. Graceful no-op when env vars missing.
+
+4. **Status flow** — Sound. `pending → paid → in_progress → delivered` covers the service lifecycle. No `cancelled`/`refunded` status needed for v1.
+
+5. **FormData checkout** — Correct. PDF upload requires FormData (not JSON). `extractTextFromPdf` from `pdf-fallback.ts` accepts `Buffer` and handles encrypted/image-only PDFs with clear error messages.
+
+6. **Admin orders page** — Appropriate for v1. Low initial volume justifies flat list without pagination.
+
+7. **Existing E2E tests** — Won't break from schema/component changes. Cross-sell change (toast → router.push) is safe. **Fixed:** New `requireEnv()` calls in `stripe.ts` require adding env vars to test config (see Challenge #6).
+
+8. **Stripe price env vars** — Consistent with existing pattern (`STRIPE_PRICE_SINGLE`, `STRIPE_PRICE_BUNDLE`, `STRIPE_PRICE_TEMPLATES` → `STRIPE_PRICE_REWRITE_BASIC`, `STRIPE_PRICE_REWRITE_PREMIUM`).
+
+### Fixes Applied
+
+| Issue | Location | Fix |
+|-------|----------|-----|
+| `stripeSessionId` uniqueness violation on abandoned checkouts | Task 1 schema + Task 4 step 6 | Changed `stripeSessionId` from `String @unique` to `String? @unique`, initial value `null` instead of `""` (matches `Roast` model pattern) |
+| New env vars crash existing tests | Potential Challenges | Added Challenge #6: must add placeholder values to `.env.test` and CI |
