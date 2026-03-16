@@ -59,10 +59,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
  * 2. ADMIN_TOKEN matches the Bearer/query token
  */
 export async function isAdminAuthorized(req: NextRequest): Promise<boolean> {
-  // Check session-based admin
-  const session = await auth();
-  if (session?.user && (session.user as { isAdmin?: boolean }).isAdmin) {
-    return true;
+  // Check session-based admin (may fail if AUTH_SECRET not configured)
+  try {
+    const session = await auth();
+    if (session?.user && (session.user as { isAdmin?: boolean }).isAdmin) {
+      return true;
+    }
+  } catch {
+    // Auth not configured — fall through to token check
   }
 
   // Fallback: ADMIN_TOKEN (for scripts/API access)
