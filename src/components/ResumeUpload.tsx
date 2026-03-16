@@ -12,7 +12,7 @@ import { isValidEmail } from "@/lib/email";
 import { validateFile, formatFileSize } from "@/lib/file-validation";
 import type { RoastResult } from "@/lib/types";
 
-const ROAST_TIMEOUT_MS = 60_000;
+const ROAST_TIMEOUT_MS = 30_000;
 
 interface ResumeUploadProps {
   onResult: (result: RoastResult) => void;
