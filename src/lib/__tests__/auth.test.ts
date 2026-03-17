@@ -313,4 +313,126 @@ describe("isAdminAuthorized", () => {
 
     delete process.env.ADMIN_TOKEN;
   });
+
+  it("falls through to ADMIN_TOKEN when auth() throws MissingSecret", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: { roast: { updateMany: vi.fn() } },
+    }));
+
+    const mockAuth = vi.fn().mockRejectedValue(new Error("MissingSecret"));
+
+    vi.doMock("next-auth", () => ({
+      default: vi.fn(() => ({
+        handlers: {},
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+        auth: mockAuth,
+      })),
+    }));
+    vi.doMock("next-auth/providers/google", () => ({
+      default: vi.fn(() => ({ id: "google" })),
+    }));
+    vi.doMock("next-auth/providers/resend", () => ({
+      default: vi.fn(() => ({ id: "resend" })),
+    }));
+    vi.doMock("@auth/prisma-adapter", () => ({
+      PrismaAdapter: vi.fn(() => ({})),
+    }));
+
+    process.env.ADMIN_TOKEN = "test-token-123";
+
+    const { isAdminAuthorized } = await import("@/lib/auth");
+    const req = new Request("http://localhost/api/admin/stats", {
+      headers: { authorization: "Bearer test-token-123" },
+    });
+    const result = await isAdminAuthorized(
+      req as unknown as import("next/server").NextRequest
+    );
+
+    expect(result).toBe(true);
+    expect(mockAuth).toHaveBeenCalled();
+
+    delete process.env.ADMIN_TOKEN;
+  });
+
+  it("returns false when auth() throws and no ADMIN_TOKEN is set", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: { roast: { updateMany: vi.fn() } },
+    }));
+
+    const mockAuth = vi.fn().mockRejectedValue(new Error("MissingSecret"));
+
+    vi.doMock("next-auth", () => ({
+      default: vi.fn(() => ({
+        handlers: {},
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+        auth: mockAuth,
+      })),
+    }));
+    vi.doMock("next-auth/providers/google", () => ({
+      default: vi.fn(() => ({ id: "google" })),
+    }));
+    vi.doMock("next-auth/providers/resend", () => ({
+      default: vi.fn(() => ({ id: "resend" })),
+    }));
+    vi.doMock("@auth/prisma-adapter", () => ({
+      PrismaAdapter: vi.fn(() => ({})),
+    }));
+
+    delete process.env.ADMIN_TOKEN;
+
+    const { isAdminAuthorized } = await import("@/lib/auth");
+    const req = new Request("http://localhost/api/admin/stats");
+    const result = await isAdminAuthorized(
+      req as unknown as import("next/server").NextRequest
+    );
+
+    expect(result).toBe(false);
+  });
+
+  it("accepts query token when auth() throws", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: { roast: { updateMany: vi.fn() } },
+    }));
+
+    const mockAuth = vi.fn().mockRejectedValue(new Error("MissingSecret"));
+
+    vi.doMock("next-auth", () => ({
+      default: vi.fn(() => ({
+        handlers: {},
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+        auth: mockAuth,
+      })),
+    }));
+    vi.doMock("next-auth/providers/google", () => ({
+      default: vi.fn(() => ({ id: "google" })),
+    }));
+    vi.doMock("next-auth/providers/resend", () => ({
+      default: vi.fn(() => ({ id: "resend" })),
+    }));
+    vi.doMock("@auth/prisma-adapter", () => ({
+      PrismaAdapter: vi.fn(() => ({})),
+    }));
+
+    process.env.ADMIN_TOKEN = "test-token-123";
+
+    const { isAdminAuthorized } = await import("@/lib/auth");
+    const url = new URL("http://localhost/api/admin/stats?token=test-token-123");
+    const req = {
+      headers: new Headers(),
+      nextUrl: url,
+    };
+    const result = await isAdminAuthorized(
+      req as unknown as import("next/server").NextRequest
+    );
+
+    expect(result).toBe(true);
+
+    delete process.env.ADMIN_TOKEN;
+  });
 });

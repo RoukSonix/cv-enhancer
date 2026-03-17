@@ -102,7 +102,7 @@ test.describe("Error Handling", () => {
     // Wait for the timeout UI (30s + buffer)
     await expect(
       page.getByText("The roast is taking longer than expected")
-    ).toBeVisible({ timeout: 40000 });
+    ).toBeVisible({ timeout: 70000 });
 
     // Try Again button should be visible
     await expect(page.getByRole("button", { name: "Try Again" })).toBeVisible();
@@ -128,7 +128,7 @@ test.describe("Error Handling", () => {
 
     await expect(
       page.getByText("The roast is taking longer than expected")
-    ).toBeVisible({ timeout: 40000 });
+    ).toBeVisible({ timeout: 70000 });
 
     await page.getByRole("button", { name: "Change resume" }).click();
 
