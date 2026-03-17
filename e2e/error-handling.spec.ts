@@ -82,8 +82,10 @@ test.describe("Error Handling", () => {
   });
 
   test("timeout shows retry UI with try again button", async ({ page }) => {
-    // Mock a very slow API response that will trigger the 30s timeout
-    // We use a shorter approach: abort the route to simulate timeout behavior
+    test.slow();
+
+    // Mock a very slow API response that will trigger the client timeout (now 60s)
+    // We never respond — let the AbortController timeout fire
     await page.route("**/api/roast", async (route) => {
       if (route.request().method() === "POST") {
         // Never respond — let the AbortController timeout fire
@@ -112,6 +114,7 @@ test.describe("Error Handling", () => {
   });
 
   test("change resume button returns to form after timeout", async ({ page }) => {
+    test.slow();
     await page.route("**/api/roast", async (route) => {
       if (route.request().method() === "POST") {
         await new Promise(() => {}); // hang forever
