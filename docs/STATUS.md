@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-03-15 (Sprint 12)
+**Last updated:** 2026-03-17 (Sprint 12 — Bugfix)
 
 ## Current State
 
@@ -50,7 +50,7 @@
 | File validation (client) | Working | Rejects non-PDF and >5MB with toast (Sprint 6) |
 | File validation (server) | Working | 413 response for >5MB uploads (Sprint 6) |
 | File info display | Working | Shows file name + size after upload (Sprint 6) |
-| API timeout + retry | Working | 30s AbortController timeout, retry UI (Sprint 6) |
+| API timeout + retry | Working | 60s AbortController timeout, retry UI (Sprint 6, fixed Sprint 12) |
 | Error boundary | Working | Class component wrapping layout children (Sprint 6) |
 | Loading skeleton | Working | Pulsing skeleton for `/roast/[id]` page (Sprint 6) |
 | Mobile responsiveness | Working | Responsive padding, text sizing, button stacking (Sprint 6) |
@@ -79,8 +79,9 @@
 | Header with auth | Working | Sticky header with logo, sign in/out, user dropdown (Sprint 10) |
 | Retroactive roast linking | Working | Existing roasts linked to user by email on first sign-in (Sprint 10) |
 | Session-based admin auth | Working | Admin page uses isAdmin from JWT session (Sprint 10) |
-| Dual admin API auth | Working | Admin APIs accept session isAdmin OR ADMIN_TOKEN (Sprint 10) |
+| Dual admin API auth | Working | Admin APIs accept session isAdmin OR ADMIN_TOKEN; auth() failure falls through to token (Sprint 10, fixed Sprint 12) |
 | Email normalization | Working | Emails lowercased on storage and linking (Sprint 10) |
+| Health endpoint | Working | GET /api/health returns { status, timestamp } for liveness probes (Sprint 12 bugfix) |
 
 | Rewrite sales page | Working | `/rewrite` page with pricing tiers, booking form, FAQ (Sprint 12) |
 | Rewrite checkout | Working | `POST /api/checkout/rewrite` — FormData, PDF upload, order-before-checkout pattern (Sprint 12) |
@@ -353,6 +354,8 @@ src/
 │   │   │       ├── route.ts     # GET: fetch saved roast by ID (Sprint 2)
 │   │   │       ├── upgrade/route.ts # POST: retry AI for stuck paid roasts (Sprint 4)
 │   │   │       └── rate/route.ts  # POST: submit rating 1/-1 (Sprint 9)
+│   │   ├── health/
+│   │   │   └── route.ts         # GET: health check for liveness probes (Sprint 12 bugfix)
 │   │   ├── stats/
 │   │   │   └── route.ts         # GET: public stats with 60s cache (Sprint 9)
 │   │   ├── og/

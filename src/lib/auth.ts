@@ -60,9 +60,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
  */
 export async function isAdminAuthorized(req: NextRequest): Promise<boolean> {
   // Check session-based admin
-  const session = await auth();
-  if (session?.user && (session.user as { isAdmin?: boolean }).isAdmin) {
-    return true;
+  try {
+    const session = await auth();
+    if (session?.user && (session.user as { isAdmin?: boolean }).isAdmin) {
+      return true;
+    }
+  } catch {
+    // auth() throws MissingSecret when AUTH_SECRET is not set —
+    // fall through to ADMIN_TOKEN check
   }
 
   // Fallback: ADMIN_TOKEN (for scripts/API access)
