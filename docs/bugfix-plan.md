@@ -24,8 +24,10 @@ const ROAST_TIMEOUT_MS = 60_000;
 
 **Test cases:**
 1. **Unit test:** Verify `ROAST_TIMEOUT_MS` equals `60_000` (import or read the constant).
-2. **E2E test:** Submit a roast via paste text → confirm results page loads without timeout screen (existing `test.slow()` roast flow test should now pass reliably).
+2. **E2E test:** Submit a roast via paste text → confirm results page loads without timeout screen (`e2e/roast-flow.spec.ts` mocks the API and is unaffected by this change).
 3. **Manual:** Paste text + email → "Roast My Resume" → wait up to 35s → should see results, not timeout UI.
+
+**⚠ Required E2E fix:** `e2e/error-handling.spec.ts` has two timeout tests (lines 84–112, 114–137) that hang the API mock and wait `timeout: 40000` (40s) for the timeout UI. After this change the timeout fires at 60s, so those Playwright assertions will fail. Update both `toBeVisible({ timeout: 40000 })` calls to `toBeVisible({ timeout: 70000 })` (60s timeout + 10s buffer).
 
 ---
 
@@ -148,3 +150,25 @@ export function GET() {
 ## Branch Strategy
 
 Per AGENTS.md: single branch `fix/smoke-test-bugs` with one commit per bug, or one combined commit referencing all four issues.
+
+---
+
+## Validation: APPROVED
+
+**Validated:** 2026-03-17
+**Validator:** Claude (validation agent)
+
+### Findings
+
+| # | Question | Result |
+|---|----------|--------|
+| 1 | 60s timeout sufficient? | **Yes.** 2× the observed ~28-30s API response time. Env-var configurability is unnecessary for a bugfix sprint. |
+| 2 | try/catch breaks auth when AUTH_SECRET IS set? | **No.** `auth()` returns normally (session or `null`) when configured — try/catch only catches exceptions. Existing unit tests (`auth.test.ts` lines 200-316) still pass. |
+| 3 | .env.example change sufficient for BUG-2? | **Yes.** Documentation-only fix matching issue scope. Runtime fix is BUG-3. |
+| 4 | /api/health interferes with existing routes? | **No.** Confirmed 19 existing routes under `api/admin/`, `api/auth/`, `api/checkout/`, `api/roast/`, `api/stats/`, `api/rewrite/`, `api/templates/`, `api/webhooks/` — no `api/health`. |
+| 5 | Existing E2E tests break? | **YES — fixed in plan.** Two timeout tests in `e2e/error-handling.spec.ts` (lines 84-112, 114-137) wait only 40s for timeout UI that now fires at 60s. Added required Playwright timeout update to BUG-1 section. |
+| 6 | Test cases sufficient? | **Yes**, with one correction: BUG-1 test case 2 referenced a nonexistent `test.slow()` roast flow test. `e2e/roast-flow.spec.ts` mocks the API and has no `test.slow()` — reference updated. |
+
+### Plan corrections applied
+1. BUG-1: Added required E2E fix for `e2e/error-handling.spec.ts` timeout assertions (`40000` → `70000`).
+2. BUG-1: Removed stale `test.slow()` reference from test case 2.
